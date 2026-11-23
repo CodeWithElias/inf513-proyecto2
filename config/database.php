@@ -95,8 +95,17 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
+            // Sin 'search_path': el esquema por defecto ya es public y así se evita
+            // un "SET search_path" (un viaje extra a la BD) en cada conexión.
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => [
+                // Un solo viaje por consulta (sin PREPARE con nombre en el servidor, pero con
+                // parámetros tipados). Importante cuando la BD está lejos (desarrollo local
+                // contra db.tecnoweb.org.bo). No usar ATTR_EMULATE_PREPARES: rompe los booleanos.
+                (defined('Pdo\Pgsql::ATTR_DISABLE_PREPARES') ? Pdo\Pgsql::ATTR_DISABLE_PREPARES : PDO::PGSQL_ATTR_DISABLE_PREPARES) => true,
+                // Reutiliza la conexión entre peticiones (evita reconectar ~1-2 s en local).
+                PDO::ATTR_PERSISTENT => (bool) env('DB_PERSISTENT', false),
+            ],
         ],
 
         'sqlsrv' => [

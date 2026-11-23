@@ -6,7 +6,7 @@ use App\Exceptions\NegocioException;
 use App\Models\Rol;
 use App\Models\UnidadUniversitaria;
 use App\Models\Usuario;
-use App\Support\Pbkdf2;
+use App\Support\Contrasena;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /** CU1 - Gestión de usuarios (portado de grupo13.negocio.NUsuario). */
@@ -33,7 +33,7 @@ class UsuarioService
             'nombre_completo' => $d['nombre_completo'],
             'email' => mb_strtolower($d['email']),
             'telefono' => $d['telefono'] ?? null,
-            'password_hash' => Pbkdf2::hash($d['password']),
+            'password_hash' => Contrasena::hash($d['password']),
             'id_rol' => $d['id_rol'],
             'id_unidad' => $d['id_unidad'] ?? null,
         ])->load(['rol:id_rol,nombre', 'unidad:id_unidad,nombre']);
@@ -54,7 +54,7 @@ class UsuarioService
             'id_unidad' => $d['id_unidad'] ?? null,
         ]);
         if (! empty($d['password'])) {
-            $usuario->password_hash = Pbkdf2::hash($d['password']);
+            $usuario->password_hash = Contrasena::hash($d['password']);
         }
         $usuario->save();
 

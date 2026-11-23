@@ -29,7 +29,8 @@ export default function Layout() {
             <Sidebar abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} />
 
             <div className="flex-1 min-w-0 flex flex-col">
-                <header className="sticky top-0 z-20 bg-superficie border-b border-borde px-4 sm:px-6 h-16 flex items-center gap-3">
+                <div className="sticky top-0 z-20">
+                <header className="bg-superficie px-4 sm:px-6 h-16 flex items-center gap-3">
                     <button className="btn-icono lg:hidden" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú">
                         <Menu size={22} />
                     </button>
@@ -46,6 +47,8 @@ export default function Layout() {
                         <LogOut size={20} />
                     </button>
                 </header>
+                <div className="franja-marca" aria-hidden />
+                </div>
 
                 <main id="contenido" className="flex-1 p-4 sm:p-6" tabIndex={-1}>
                     <Outlet />

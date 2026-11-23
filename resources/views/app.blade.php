@@ -3,7 +3,9 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Canal 11 · Gestión Publicitaria</title>
+    <title>TVU Canal 11 · Gestión Publicitaria</title>
+    <link rel="icon" type="image/png" href="{{ asset('img/logo-tvu.png') }}">
+    <meta name="theme-color" content="#0a35a8">
     <meta name="description" content="Sistema de gestión publicitaria de Canal 11 / UAGRM">
     {{-- Rutas base para React (permite desplegar bajo /inf513/grupo13sa/proyecto2) --}}
     <meta name="app-base" content="{{ rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?? '', '/') }}">

@@ -30,6 +30,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // El servidor de la facultad puede estar detrás de un proxy: tomar la IP real.
         $middleware->trustProxies(at: '*');
         $middleware->alias(['permiso' => VerificarPrivilegio::class]);
+        // Sin sesión: la API responde 401 JSON; si no se pidió JSON, se va al login de React.
+        $middleware->redirectGuestsTo('/login');
         $middleware->api(append: [RegistrarBitacora::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

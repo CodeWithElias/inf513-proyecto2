@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Icono from './Icono';
+import Logo from './Logo';
 
 /** Menú lateral renderizado desde la BD (menu_item) según los privilegios del rol. */
 export default function Sidebar({ abierto, onCerrar }) {
@@ -32,10 +33,14 @@ export default function Sidebar({ abierto, onCerrar }) {
                 }`}
                 aria-label="Menú principal"
             >
-                <div className="px-5 py-4 border-b border-white/10">
-                    <p className="text-lg font-bold leading-tight">Canal 11</p>
-                    <p className="text-xs opacity-75">Gestión Publicitaria · UAGRM</p>
+                <div className="px-4 py-4 border-b border-white/10 flex items-center gap-3">
+                    <Logo className="size-11" />
+                    <div>
+                        <p className="text-lg font-bold leading-tight">TVU Canal 11</p>
+                        <p className="text-xs opacity-75">Gestión Publicitaria · UAGRM</p>
+                    </div>
                 </div>
+                <div className="franja-marca" aria-hidden />
 
                 <nav className="flex-1 overflow-y-auto p-3 space-y-1">
                     {menu.map((item) =>

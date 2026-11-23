@@ -37,14 +37,14 @@ La base de datos es la **misma del Proyecto 1** (ya tiene las 27 tablas y sus da
 
 ### Usuarios de prueba
 
-Contraseña de todos: `Canal11.2026`
+Contraseña de **todos** los usuarios: `clave123!`
 
 | Rol | Correo |
 |---|---|
+| Administrador | los correos personales de los administradores del grupo (usuarios 1 y 2) |
 | Director | `carlos.mendoza@example.com` |
-| Encargado de Unidad | `patricia.justiniano@example.com` |
-| Cliente | `javier.paz@example.com` |
-| Administrador | los correos reales del grupo (rol 1) |
+| Encargado de Unidad | `patricia.justiniano@example.com`, `luis.rojas@example.com`, `ana.vaca@example.com` |
+| Cliente | `javier.paz@example.com`, `mariela.duran@example.com`, `roberto.saucedo@example.com`, `daniela.ribera@example.com` |
 
 ---
 
@@ -53,7 +53,7 @@ Contraseña de todos: `Canal11.2026`
 | Requisito | Dónde |
 |---|---|
 | Login con token (Sanctum), bloqueo tras 5 intentos | `AuthService`, `POST /auth/login` |
-| Contraseñas PBKDF2 compatibles con el Proyecto 1 | `app/Support/Pbkdf2.php` |
+| Contraseñas con **bcrypt** (12 rondas); los hashes PBKDF2 que crea el sistema vía correo se aceptan y se convierten a bcrypt al iniciar sesión | `app/Support/Contrasena.php` |
 | **RBAC**: privilegios por rol (`recurso.accion`) y matriz editable | tablas `privilegio`, `rol_privilegio`; pantalla *Roles y permisos* |
 | **Menú dinámico desde la BD** según el rol | tabla `menu_item`, `MenuService`, `GET /auth/me` |
 | **Matriz de acceso en rutas** (403 si falta el permiso) | middleware `permiso:` (`VerificarPrivilegio`) |

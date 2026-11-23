@@ -4,6 +4,7 @@ import { InsigniaActivo } from '../../components/Insignia';
 import { useAuth } from '../../context/AuthContext';
 import { useAvisos } from '../../context/AvisosContext';
 import { api, mensajeError } from '../../lib/api';
+import { limpiarOpciones } from '../../hooks/useListado';
 
 const CI = { patron: /^[0-9]{4,12}([ -][0-9A-Za-z]{1,4})?$/, mensajePatron: 'El CI debe tener de 4 a 12 dígitos y, opcionalmente, una extensión (ej. 7654321 SC).' };
 
@@ -22,6 +23,7 @@ export default function Representantes() {
         try {
             const { data } = await api.delete(`/representantes/${r.id_usuario}`);
             exito(data.message);
+            limpiarOpciones();
             recargar();
         } catch (e) {
             error(mensajeError(e));

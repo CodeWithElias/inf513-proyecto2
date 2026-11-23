@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 
 /**
- * Tabla usuario (Proyecto 1). La contraseña se guarda en PBKDF2
- * (compatible con el sistema vía correo), ver App\Support\Pbkdf2.
+ * Tabla usuario (Proyecto 1). La contraseña se guarda con bcrypt
+ * (ver App\Support\Contrasena); los hashes PBKDF2 antiguos se aceptan y se convierten al iniciar sesión.
  */
 class Usuario extends Authenticatable
 {

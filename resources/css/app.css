@@ -4,7 +4,10 @@
 @source '../**/*.{js,jsx}';
 
 /* =====================================================================
-   IDENTIDAD VISUAL Y TEMAS
+   IDENTIDAD VISUAL — TVU / Canal 11 UAGRM
+   Colores de marca (tomados del logo): azul #0A35A8 y rojo #D01010.
+   Todos los temas mantienen esa identidad; cambian el tono, la forma y la letra.
+
    Los colores NUNCA se escriben sueltos en los componentes: se usan las
    clases de Tailwind generadas desde estas variables (bg-primario,
    text-texto, border-borde, rounded-tema...) o las clases .btn, .input...
@@ -28,123 +31,131 @@
     --color-peligro: var(--peligro);
     --color-lateral: var(--lateral);
     --color-lateral-texto: var(--lateral-texto);
+    --color-marca-azul: var(--marca-azul);
+    --color-marca-rojo: var(--marca-rojo);
     --radius-tema: var(--radio);
     --font-tema: var(--fuente);
+}
+
+/* Colores fijos de la marca (no cambian con el tema) */
+:root {
+    --marca-azul: #0a35a8;
+    --marca-rojo: #d01010;
 }
 
 /* ---------- Adultos (por defecto): sobrio, institucional ---------- */
 :root,
 [data-tema='adultos'] {
-    --fondo: #f3f5f8;
+    --fondo: #f3f5fa;
     --superficie: #ffffff;
-    --superficie-2: #eef1f5;
-    --texto: #1c2430;
-    --texto-suave: #5b6676;
-    --borde: #d5dbe3;
-    --primario: #0b4f8a;
-    --primario-suave: #dbe8f5;
+    --superficie-2: #eaeef7;
+    --texto: #141b2e;
+    --texto-suave: #545e75;
+    --borde: #d3d9e6;
+    --primario: #0a35a8;
+    --primario-suave: #e1e8f8;
     --primario-texto: #ffffff;
-    --acento: #c8102e;
+    --acento: #d01010;
     --exito: #1e7b45;
     --aviso: #9a6200;
-    --peligro: #b42318;
-    --lateral: #0d2c4d;
-    --lateral-texto: #e6eef7;
+    --peligro: #c01818;
+    --lateral: #0a1f5c;
+    --lateral-texto: #e8eeff;
     --radio: 0.5rem;
     --fuente: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
 }
 [data-tema='adultos'][data-modo='noche'] {
-    --fondo: #0f1620;
-    --superficie: #17212d;
-    --superficie-2: #1f2b39;
-    --texto: #e5ebf2;
-    --texto-suave: #9aa8b8;
-    --borde: #2c3a4b;
-    --primario: #5aa2e6;
-    --primario-suave: #1b3550;
-    --primario-texto: #06121f;
-    --acento: #ff6b7d;
+    --fondo: #0b1226;
+    --superficie: #121b36;
+    --superficie-2: #1a2546;
+    --texto: #e6ebf7;
+    --texto-suave: #9ba7c4;
+    --borde: #27345a;
+    --primario: #6f93ff;
+    --primario-suave: #1a2a5c;
+    --primario-texto: #06102b;
+    --acento: #ff5a5a;
     --exito: #4cc184;
     --aviso: #f0b44c;
-    --peligro: #ff7a6e;
-    --lateral: #0a1119;
-    --lateral-texto: #d5e0ec;
+    --peligro: #ff6b6b;
+    --lateral: #070d1e;
+    --lateral-texto: #dbe3fb;
 }
 
-/* ---------- Jóvenes: moderno, vibrante ---------- */
+/* ---------- Jóvenes: moderno, vibrante, más redondeado ---------- */
 [data-tema='jovenes'] {
-    --fondo: #f5f3ff;
+    --fondo: #f2f5ff;
     --superficie: #ffffff;
-    --superficie-2: #ede9fe;
-    --texto: #1e1b2e;
-    --texto-suave: #5f5a78;
-    --borde: #d9d3f5;
-    --primario: #6d28d9;
-    --primario-suave: #ede4ff;
+    --superficie-2: #e5ebff;
+    --texto: #10173a;
+    --texto-suave: #4f5a85;
+    --borde: #cfd8fb;
+    --primario: #1f47d6;
+    --primario-suave: #e3e9ff;
     --primario-texto: #ffffff;
-    --acento: #0891b2;
+    --acento: #e11d2a;
     --exito: #15803d;
     --aviso: #a16207;
-    --peligro: #be123c;
-    --lateral: #2e1065;
-    --lateral-texto: #f1eaff;
+    --peligro: #d01010;
+    --lateral: #0a2a8a;
+    --lateral-texto: #f0f4ff;
     --radio: 0.9rem;
     --fuente: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
 }
 [data-tema='jovenes'][data-modo='noche'] {
-    --fondo: #120d22;
-    --superficie: #1c1533;
-    --superficie-2: #261d44;
-    --texto: #ece8ff;
-    --texto-suave: #a79fc9;
-    --borde: #352a5c;
-    --primario: #a78bfa;
-    --primario-suave: #2e2357;
-    --primario-texto: #140a2e;
-    --acento: #22d3ee;
+    --fondo: #080d22;
+    --superficie: #111938;
+    --superficie-2: #1a2450;
+    --texto: #eaf0ff;
+    --texto-suave: #a3b0dc;
+    --borde: #283670;
+    --primario: #7aa0ff;
+    --primario-suave: #1c2b66;
+    --primario-texto: #071033;
+    --acento: #ff4d5e;
     --exito: #4ade80;
     --aviso: #facc15;
-    --peligro: #fb7185;
-    --lateral: #0b0718;
-    --lateral-texto: #e4dcff;
+    --peligro: #ff6b6b;
+    --lateral: #050919;
+    --lateral-texto: #e2e9ff;
 }
 
-/* ---------- Niños: alegre, redondeado, letra grande ---------- */
+/* ---------- Niños: alegre, cálido, muy redondeado (rojo como protagonista) ---------- */
 [data-tema='ninos'] {
-    --fondo: #fffbea;
+    --fondo: #fff7f4;
     --superficie: #ffffff;
-    --superficie-2: #fff1c2;
-    --texto: #2b2100;
-    --texto-suave: #6b5a1f;
-    --borde: #f5d76e;
-    --primario: #e85d04;
-    --primario-suave: #ffe8d2;
+    --superficie-2: #ffe8e3;
+    --texto: #2a1416;
+    --texto-suave: #6f4a4d;
+    --borde: #f5c8c1;
+    --primario: #d01010;
+    --primario-suave: #ffe1dd;
     --primario-texto: #ffffff;
-    --acento: #2a9d8f;
+    --acento: #0a35a8;
     --exito: #2b8a3e;
     --aviso: #b25e00;
-    --peligro: #c92a2a;
-    --lateral: #1d6f63;
-    --lateral-texto: #fffbea;
+    --peligro: #b3000f;
+    --lateral: #0a35a8;
+    --lateral-texto: #fff7f4;
     --radio: 1.25rem;
     --fuente: 'Comic Sans MS', 'Chalkboard SE', 'Segoe Print', system-ui, sans-serif;
 }
 [data-tema='ninos'][data-modo='noche'] {
-    --fondo: #1b1a2e;
-    --superficie: #26244a;
-    --superficie-2: #322f5c;
-    --texto: #fff6d6;
-    --texto-suave: #cfc4a0;
-    --borde: #4a4680;
-    --primario: #ffa94d;
-    --primario-suave: #4a3220;
-    --primario-texto: #2b1400;
-    --acento: #63e6be;
+    --fondo: #161230;
+    --superficie: #221b45;
+    --superficie-2: #2d2558;
+    --texto: #fff3ef;
+    --texto-suave: #cdbfd6;
+    --borde: #463d80;
+    --primario: #ff6b6b;
+    --primario-suave: #4a1f33;
+    --primario-texto: #2a0505;
+    --acento: #82a8ff;
     --exito: #69db7c;
     --aviso: #ffd43b;
     --peligro: #ff8787;
-    --lateral: #131226;
-    --lateral-texto: #fff6d6;
+    --lateral: #0e0b22;
+    --lateral-texto: #fff3ef;
 }
 
 /* ---------- Alto contraste (WCAG): gana sobre cualquier tema ---------- */
@@ -164,6 +175,8 @@
     --peligro: #ff6666;
     --lateral: #000000;
     --lateral-texto: #ffffff;
+    --marca-azul: #ffffff;
+    --marca-rojo: #ffff00;
 }
 [data-contraste='alto'] a,
 [data-contraste='alto'] button:focus-visible {
@@ -223,5 +236,10 @@ body {
     }
     .texto-error {
         @apply text-xs text-peligro mt-1;
+    }
+    /* Franja azul-roja de la marca TVU (encabezado, login) */
+    .franja-marca {
+        height: 4px;
+        background: linear-gradient(90deg, var(--marca-azul) 0 68%, var(--marca-rojo) 68% 100%);
     }
 }

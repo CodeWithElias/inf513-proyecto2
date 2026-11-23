@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Exceptions\NegocioException;
 use App\Models\Bitacora;
 use App\Models\Usuario;
-use App\Support\Pbkdf2;
+use App\Support\Contrasena;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 
@@ -34,7 +34,7 @@ class AuthService
 
         $usuario = Usuario::with('rol')->whereRaw('lower(email) = ?', [$email])->first();
 
-        if (! $usuario || ! Pbkdf2::verificar($password, $usuario->password_hash)) {
+        if (! $usuario || ! Contrasena::verificar($password, $usuario->password_hash)) {
             RateLimiter::hit($clave, self::BLOQUEO_SEGUNDOS);
             $this->fallido($request, $email, $usuario ? 'Contraseña incorrecta' : 'Email no registrado');
             throw new NegocioException('El correo o la contraseña son incorrectos.', 401);
@@ -49,6 +49,10 @@ class AuthService
         }
 
         RateLimiter::clear($clave);
+        // Migración transparente: hashes PBKDF2 (creados por el sistema vía correo) pasan a bcrypt.
+        if (Contrasena::necesitaActualizar($usuario->password_hash)) {
+            $usuario->forceFill(['password_hash' => Contrasena::hash($password)])->save();
+        }
         $token = $usuario->createToken('spa')->plainTextToken;
         $this->bitacora->registrar($request, Bitacora::LOGIN_OK, $usuario, [
             'recurso' => 'POST api/v1/auth/login',

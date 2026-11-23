@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pencil, Plus, Power, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useAvisos } from '../context/AvisosContext';
-import { useListado, useOpciones } from '../hooks/useListado';
+import { limpiarOpciones, useListado, useOpciones } from '../hooks/useListado';
 import { useFormulario } from '../hooks/useFormulario';
 import { api, mensajeError } from '../lib/api';
 import EncabezadoPagina from './EncabezadoPagina';
@@ -85,6 +85,7 @@ export default function PaginaCrud({
         if (r) {
             exito(r.data.message ?? 'Guardado correctamente.');
             cerrar();
+            limpiarOpciones(); // el registro nuevo o editado puede aparecer en otros selects
             listado.recargar();
         }
     };
@@ -100,6 +101,7 @@ export default function PaginaCrud({
         try {
             const { data } = await api.patch(estado.endpoint(f), { activo: !activo });
             exito(data.message);
+            limpiarOpciones(); // las listas de opciones solo muestran registros activos
             listado.recargar();
         } catch (err) {
             error(mensajeError(err));
@@ -199,8 +201,9 @@ export default function PaginaCrud({
 }
 
 function CampoCrud({ campo, modo, form, requerido }) {
-    const remotas = useOpciones(typeof campo.opciones === 'string' ? campo.opciones : null);
-    const opciones = typeof campo.opciones === 'string' ? remotas : (campo.opciones ?? []);
+    const remoto = typeof campo.opciones === 'string';
+    const { opciones: remotas, cargando } = useOpciones(remoto ? campo.opciones : null);
+    const opciones = remoto ? remotas : (campo.opciones ?? []);
     return (
         <Campo
             etiqueta={campo.etiqueta}
@@ -213,15 +216,15 @@ function CampoCrud({ campo, modo, form, requerido }) {
             opciones={opciones}
             ayuda={typeof campo.ayuda === 'function' ? campo.ayuda(modo) : campo.ayuda}
             placeholder={campo.placeholder}
-            vacio={campo.vacio}
-            deshabilitado={modo === 'editar' && campo.bloqueadoAlEditar}
+            vacio={remoto && cargando ? 'Cargando opciones…' : campo.vacio}
+            deshabilitado={(modo === 'editar' && campo.bloqueadoAlEditar) || (remoto && cargando)}
             autoComplete={campo.tipo === 'password' ? 'new-password' : undefined}
         />
     );
 }
 
 function FiltroSelect({ filtro, valor, onChange }) {
-    const remotas = useOpciones(typeof filtro.opciones === 'string' ? filtro.opciones : null);
+    const { opciones: remotas } = useOpciones(typeof filtro.opciones === 'string' ? filtro.opciones : null);
     const opciones = typeof filtro.opciones === 'string' ? remotas : filtro.opciones;
     return (
         <label className="sm:w-48">

@@ -52,18 +52,43 @@ export function useListado(endpoint, filtrosIniciales = {}) {
     return { filas, meta, cargando, error, filtros, setFiltro, pagina, setPagina, recargar: () => setVersion((v) => v + 1) };
 }
 
-/** Opciones para <select> desde GET /opciones/{tipo} -> [{ id, nombre }]. */
+/**
+ * Caché de opciones compartido por toda la app: cada lista (/opciones/roles, ...)
+ * se pide UNA vez y la reutilizan todos los selects y filtros. Se guarda la promesa,
+ * así dos componentes que la piden a la vez comparten la misma petición.
+ */
+const cacheOpciones = new Map();
+
+function pedirOpciones(tipo) {
+    if (!cacheOpciones.has(tipo)) {
+        const promesa = api.get(`/opciones/${tipo}`).then(({ data }) => data.data);
+        promesa.catch(() => cacheOpciones.delete(tipo)); // si falla, se reintenta la próxima vez
+        cacheOpciones.set(tipo, promesa);
+    }
+    return cacheOpciones.get(tipo);
+}
+
+/** Vacía el caché (después de crear o modificar registros que aparecen en los selects). */
+export function limpiarOpciones() {
+    cacheOpciones.clear();
+}
+
+/**
+ * Opciones para <select> desde GET /opciones/{tipo} -> [{ id, nombre }].
+ *   const { opciones, cargando } = useOpciones('roles');
+ */
 export function useOpciones(tipo) {
-    const [opciones, setOpciones] = useState([]);
+    const [estado, setEstado] = useState({ opciones: [], cargando: Boolean(tipo) });
     useEffect(() => {
         if (!tipo) return;
         let vigente = true;
-        api.get(`/opciones/${tipo}`)
-            .then(({ data }) => vigente && setOpciones(data.data))
-            .catch(() => vigente && setOpciones([]));
+        setEstado((e) => ({ ...e, cargando: true }));
+        pedirOpciones(tipo)
+            .then((opciones) => vigente && setEstado({ opciones, cargando: false }))
+            .catch(() => vigente && setEstado({ opciones: [], cargando: false }));
         return () => {
             vigente = false;
         };
     }, [tipo]);
-    return opciones;
+    return estado;
 }

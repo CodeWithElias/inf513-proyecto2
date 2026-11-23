@@ -3,6 +3,9 @@
 namespace App\Support;
 
 /**
+ * SOLO para verificar hashes antiguos. El sistema usa bcrypt (App\Support\Contrasena);
+ * esta clase se mantiene porque el sistema vía correo sigue creando usuarios con PBKDF2.
+ *
  * Hash de contraseñas compatible con el Proyecto 1 (grupo13.negocio.Seguridad):
  * PBKDF2WithHmacSHA256, 256 bits, sal de 16 bytes.
  * Formato: pbkdf2$iteraciones$salBase64$hashBase64

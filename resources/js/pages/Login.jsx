@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, Tv } from 'lucide-react';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import { useFormulario } from '../hooks/useFormulario';
 import Campo from '../components/Campo';
@@ -33,13 +34,13 @@ export default function Login() {
                 <PanelAccesibilidad />
             </div>
             <main className="flex-1 flex items-center justify-center p-4">
-                <div className="tarjeta w-full max-w-md p-8">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="size-12 rounded-tema bg-primario text-primario-texto flex items-center justify-center">
-                            <Tv size={26} aria-hidden />
-                        </div>
+                <div className="tarjeta w-full max-w-md overflow-hidden">
+                    <div className="franja-marca" aria-hidden />
+                    <div className="p-8">
+                    <div className="flex flex-col items-center text-center gap-3 mb-6">
+                        <Logo className="size-28 shadow-md" />
                         <div>
-                            <h1 className="text-xl font-bold">Canal 11 · UAGRM</h1>
+                            <h1 className="text-xl font-bold">TVU · Canal 11 UAGRM</h1>
                             <p className="text-sm text-texto-suave">Sistema de Gestión Publicitaria</p>
                         </div>
                     </div>
@@ -62,6 +63,7 @@ export default function Login() {
                     <p className="text-xs text-texto-suave mt-6 text-center">
                         Por seguridad, después de 5 intentos fallidos se bloquea el acceso durante un minuto.
                     </p>
+                    </div>
                 </div>
             </main>
             <Footer />

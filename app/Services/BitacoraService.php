@@ -69,8 +69,8 @@ class BitacoraService
 
         // Serie completa (días sin actividad en 0) para los gráficos.
         $serie = [];
-        for ($d = $desde->copy(); $d->lte(now()); $d->addDay()) {
-            $k = $d->format('Y-m-d');
+        for ($i = 0; $i < $dias; $i++) {
+            $k = $desde->copy()->addDays($i)->format('Y-m-d');
             $fila = $porDia->get($k);
             $serie[] = [
                 'dia' => $k,
