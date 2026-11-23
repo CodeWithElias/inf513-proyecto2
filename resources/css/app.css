@@ -1,0 +1,227 @@
+@import 'tailwindcss';
+
+@source '../**/*.blade.php';
+@source '../**/*.{js,jsx}';
+
+/* =====================================================================
+   IDENTIDAD VISUAL Y TEMAS
+   Los colores NUNCA se escriben sueltos en los componentes: se usan las
+   clases de Tailwind generadas desde estas variables (bg-primario,
+   text-texto, border-borde, rounded-tema...) o las clases .btn, .input...
+   Temas: data-tema = adultos | jovenes | ninos   ×   data-modo = dia | noche
+   Accesibilidad: data-contraste = alto  y  font-size en <html> (rem).
+   ===================================================================== */
+
+@theme inline {
+    --color-fondo: var(--fondo);
+    --color-superficie: var(--superficie);
+    --color-superficie-2: var(--superficie-2);
+    --color-texto: var(--texto);
+    --color-texto-suave: var(--texto-suave);
+    --color-borde: var(--borde);
+    --color-primario: var(--primario);
+    --color-primario-suave: var(--primario-suave);
+    --color-primario-texto: var(--primario-texto);
+    --color-acento: var(--acento);
+    --color-exito: var(--exito);
+    --color-aviso: var(--aviso);
+    --color-peligro: var(--peligro);
+    --color-lateral: var(--lateral);
+    --color-lateral-texto: var(--lateral-texto);
+    --radius-tema: var(--radio);
+    --font-tema: var(--fuente);
+}
+
+/* ---------- Adultos (por defecto): sobrio, institucional ---------- */
+:root,
+[data-tema='adultos'] {
+    --fondo: #f3f5f8;
+    --superficie: #ffffff;
+    --superficie-2: #eef1f5;
+    --texto: #1c2430;
+    --texto-suave: #5b6676;
+    --borde: #d5dbe3;
+    --primario: #0b4f8a;
+    --primario-suave: #dbe8f5;
+    --primario-texto: #ffffff;
+    --acento: #c8102e;
+    --exito: #1e7b45;
+    --aviso: #9a6200;
+    --peligro: #b42318;
+    --lateral: #0d2c4d;
+    --lateral-texto: #e6eef7;
+    --radio: 0.5rem;
+    --fuente: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+}
+[data-tema='adultos'][data-modo='noche'] {
+    --fondo: #0f1620;
+    --superficie: #17212d;
+    --superficie-2: #1f2b39;
+    --texto: #e5ebf2;
+    --texto-suave: #9aa8b8;
+    --borde: #2c3a4b;
+    --primario: #5aa2e6;
+    --primario-suave: #1b3550;
+    --primario-texto: #06121f;
+    --acento: #ff6b7d;
+    --exito: #4cc184;
+    --aviso: #f0b44c;
+    --peligro: #ff7a6e;
+    --lateral: #0a1119;
+    --lateral-texto: #d5e0ec;
+}
+
+/* ---------- Jóvenes: moderno, vibrante ---------- */
+[data-tema='jovenes'] {
+    --fondo: #f5f3ff;
+    --superficie: #ffffff;
+    --superficie-2: #ede9fe;
+    --texto: #1e1b2e;
+    --texto-suave: #5f5a78;
+    --borde: #d9d3f5;
+    --primario: #6d28d9;
+    --primario-suave: #ede4ff;
+    --primario-texto: #ffffff;
+    --acento: #0891b2;
+    --exito: #15803d;
+    --aviso: #a16207;
+    --peligro: #be123c;
+    --lateral: #2e1065;
+    --lateral-texto: #f1eaff;
+    --radio: 0.9rem;
+    --fuente: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+}
+[data-tema='jovenes'][data-modo='noche'] {
+    --fondo: #120d22;
+    --superficie: #1c1533;
+    --superficie-2: #261d44;
+    --texto: #ece8ff;
+    --texto-suave: #a79fc9;
+    --borde: #352a5c;
+    --primario: #a78bfa;
+    --primario-suave: #2e2357;
+    --primario-texto: #140a2e;
+    --acento: #22d3ee;
+    --exito: #4ade80;
+    --aviso: #facc15;
+    --peligro: #fb7185;
+    --lateral: #0b0718;
+    --lateral-texto: #e4dcff;
+}
+
+/* ---------- Niños: alegre, redondeado, letra grande ---------- */
+[data-tema='ninos'] {
+    --fondo: #fffbea;
+    --superficie: #ffffff;
+    --superficie-2: #fff1c2;
+    --texto: #2b2100;
+    --texto-suave: #6b5a1f;
+    --borde: #f5d76e;
+    --primario: #e85d04;
+    --primario-suave: #ffe8d2;
+    --primario-texto: #ffffff;
+    --acento: #2a9d8f;
+    --exito: #2b8a3e;
+    --aviso: #b25e00;
+    --peligro: #c92a2a;
+    --lateral: #1d6f63;
+    --lateral-texto: #fffbea;
+    --radio: 1.25rem;
+    --fuente: 'Comic Sans MS', 'Chalkboard SE', 'Segoe Print', system-ui, sans-serif;
+}
+[data-tema='ninos'][data-modo='noche'] {
+    --fondo: #1b1a2e;
+    --superficie: #26244a;
+    --superficie-2: #322f5c;
+    --texto: #fff6d6;
+    --texto-suave: #cfc4a0;
+    --borde: #4a4680;
+    --primario: #ffa94d;
+    --primario-suave: #4a3220;
+    --primario-texto: #2b1400;
+    --acento: #63e6be;
+    --exito: #69db7c;
+    --aviso: #ffd43b;
+    --peligro: #ff8787;
+    --lateral: #131226;
+    --lateral-texto: #fff6d6;
+}
+
+/* ---------- Alto contraste (WCAG): gana sobre cualquier tema ---------- */
+[data-contraste='alto'] {
+    --fondo: #000000;
+    --superficie: #000000;
+    --superficie-2: #1a1a1a;
+    --texto: #ffffff;
+    --texto-suave: #ffffff;
+    --borde: #ffffff;
+    --primario: #ffff00;
+    --primario-suave: #333300;
+    --primario-texto: #000000;
+    --acento: #00ffff;
+    --exito: #00ff00;
+    --aviso: #ffff00;
+    --peligro: #ff6666;
+    --lateral: #000000;
+    --lateral-texto: #ffffff;
+}
+[data-contraste='alto'] a,
+[data-contraste='alto'] button:focus-visible {
+    text-decoration: underline;
+}
+
+/* ---------- Base ---------- */
+html {
+    background: var(--fondo);
+}
+body {
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: var(--fuente);
+    -webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+    outline: 3px solid var(--acento);
+    outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/* ---------- Componentes reutilizables ---------- */
+@layer components {
+    .tarjeta {
+        @apply bg-superficie border border-borde rounded-tema shadow-sm;
+    }
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-tema text-sm font-semibold border border-transparent transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+    /* Uso: class="btn btn-primario" */
+    .btn-primario {
+        @apply bg-primario text-primario-texto hover:opacity-90;
+    }
+    .btn-secundario {
+        @apply bg-superficie text-texto border-borde hover:bg-superficie-2;
+    }
+    .btn-peligro {
+        @apply bg-peligro text-white hover:opacity-90;
+    }
+    .btn-icono {
+        @apply inline-flex items-center justify-center p-1.5 rounded-tema text-texto-suave hover:bg-superficie-2 hover:text-texto cursor-pointer;
+    }
+    .input {
+        @apply w-full px-3 py-2 rounded-tema border border-borde bg-superficie text-texto text-sm placeholder:text-texto-suave focus:outline-none focus:ring-2 focus:ring-primario;
+    }
+    .input-error {
+        @apply border-peligro ring-1 ring-peligro;
+    }
+    .etiqueta {
+        @apply block text-sm font-medium text-texto mb-1;
+    }
+    .texto-error {
+        @apply text-xs text-peligro mt-1;
+    }
+}
