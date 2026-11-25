@@ -67,13 +67,35 @@ class OpcionesController extends Controller
                 ->when($actor && ! $actor->esPersonal(), fn ($b) => $b->where('id_usuario', $actor->id_usuario))
                 ->selectRaw("id_metodo as id, COALESCE(marca, tipo) || COALESCE(' •••• ' || ultimos4, '') || ' · ' || titular as nombre, tipo, ultimos4, predeterminado"),
 
-            // Persona C - Operación y Material
+            // Persona C - Operación, Espacios y Pautas
             'campanias' => DB::table('campania as c')
                 ->join('proforma as p', 'p.id_proforma', '=', 'c.id_proforma')
                 ->leftJoin('empresa_anunciante as e', 'e.id_empresa', '=', 'p.id_empresa')
                 ->whereIn('c.estado', ['activa', 'pausada'])
                 ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
                 ->selectRaw("c.id_campania as id, c.nombre || COALESCE(' · ' || e.razon_social, '') || ' (' || c.estado || ')' as nombre"),
+            'canales' => DB::table('canal_difusion')
+                ->where('activo', true)
+                ->selectRaw("id_canal as id, nombre || ' (' || tipo || ')' as nombre, tipo"),
+            'materiales-aprobados' => DB::table('material_publicitario as m')
+                ->join('campania as c', 'c.id_campania', '=', 'm.id_campania')
+                ->join('proforma as p', 'p.id_proforma', '=', 'c.id_proforma')
+                ->where('m.estado', 'aprobado')
+                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->selectRaw("m.id_material as id, m.nombre_archivo || ' (' || m.tipo || ' · v' || m.version || ') · ' || c.nombre as nombre, m.id_campania"),
+            'espacios-disponibles' => DB::table('espacio_publicitario as e')
+                ->join('canal_difusion as c', 'c.id_canal', '=', 'e.id_canal')
+                ->where('e.estado', 'disponible')
+                ->where('e.fecha', '>=', now()->toDateString())
+                ->selectRaw("e.id_espacio as id, c.nombre || ' · ' || to_char(e.fecha, 'DD/MM/YYYY') || ' (' || to_char(e.hora_inicio, 'HH24:MI') || ' - ' || to_char(e.hora_fin, 'HH24:MI') || ')' as nombre"),
+            'detalles-proforma' => DB::table('detalle_proforma as dp')
+                ->join('proforma as p', 'p.id_proforma', '=', 'dp.id_proforma')
+                ->join('campania as c', 'c.id_proforma', '=', 'p.id_proforma')
+                ->leftJoin('tarifa as t', 't.id_tarifa', '=', 'dp.id_tarifa')
+                ->leftJoin('servicio_publicitario as s', 's.id_servicio', '=', 't.id_servicio')
+                ->leftJoin('paquete as pa', 'pa.id_paquete', '=', 'dp.id_paquete')
+                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->selectRaw("dp.id_detalle as id, COALESCE(s.nombre, pa.nombre, 'Servicio/Paquete') || ' (Cant: ' || dp.cantidad || ')' as nombre, c.id_campania"),
 
             default => throw new NegocioException("No existe la lista de opciones «{$tipo}».", 404),
         };

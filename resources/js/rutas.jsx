@@ -32,6 +32,9 @@ import Pagos from './pages/pagos/Pagos';
 import PlanesPago from './pages/pagos/PlanesPago';
 // Persona C
 import Materiales from './pages/operacion/Materiales';
+import Espacios from './pages/operacion/Espacios';
+import Pautas from './pages/operacion/Pautas';
+import Notificaciones from './pages/operacion/Notificaciones';
 
 export const RUTAS = [
     { ruta: '/', componente: Inicio },
@@ -66,9 +69,9 @@ export const RUTAS = [
     // ---------------- Persona C: operación y estadísticas ----------------
     { ruta: '/dashboard', componente: EnConstruccion, privilegio: 'dashboard.ver' },
     { ruta: '/materiales', componente: Materiales, privilegio: 'materiales.ver' },
-    { ruta: '/espacios', componente: EnConstruccion, privilegio: 'espacios.ver' },
-    { ruta: '/pautas', componente: EnConstruccion, privilegio: 'pautas.ver' },
-    { ruta: '/notificaciones', componente: EnConstruccion, privilegio: 'notificaciones.ver' },
+    { ruta: '/espacios', componente: Espacios, privilegio: 'espacios.ver' },
+    { ruta: '/pautas', componente: Pautas, privilegio: 'pautas.ver' },
+    { ruta: '/notificaciones', componente: Notificaciones, privilegio: 'notificaciones.ver' },
     { ruta: '/metricas', componente: EnConstruccion, privilegio: 'metricas.ver' },
     { ruta: '/reportes', componente: EnConstruccion, privilegio: 'reportes.ver' },
 ];

@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Api\V1\EspacioController;
 use App\Http\Controllers\Api\V1\MaterialController;
+use App\Http\Controllers\Api\V1\NotificacionController;
+use App\Http\Controllers\Api\V1\PautaController;
 use Illuminate\Support\Facades\Route;
 
 // Persona C - CU4 (material y revisiones), CU5 (espacios, pautas, notificaciones),
@@ -17,4 +20,22 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('materiales/{material}/revisar', [MaterialController::class, 'revisar'])->middleware('permiso:revisiones.crear');
     Route::get('materiales/{material}/revisiones', [MaterialController::class, 'revisiones'])->middleware('permiso:revisiones.ver');
+
+    // CU5: Espacios publicitarios
+    Route::get('espacios', [EspacioController::class, 'index'])->middleware('permiso:espacios.ver');
+    Route::post('espacios', [EspacioController::class, 'store'])->middleware('permiso:espacios.crear');
+    Route::put('espacios/{espacio}', [EspacioController::class, 'update'])->middleware('permiso:espacios.editar');
+    Route::delete('espacios/{espacio}', [EspacioController::class, 'destroy'])->middleware('permiso:espacios.eliminar');
+
+    // CU5: Pautas publicitarias
+    Route::get('pautas', [PautaController::class, 'index'])->middleware('permiso:pautas.ver');
+    Route::post('pautas', [PautaController::class, 'store'])->middleware('permiso:pautas.crear');
+    Route::put('pautas/{pauta}/reprogramar', [PautaController::class, 'reprogramar'])->middleware('permiso:pautas.editar');
+    Route::patch('pautas/{pauta}/emitir', [PautaController::class, 'emitir'])->middleware('permiso:pautas.editar');
+    Route::delete('pautas/{pauta}', [PautaController::class, 'destroy'])->middleware('permiso:pautas.eliminar');
+
+    // CU5: Notificaciones
+    Route::get('notificaciones', [NotificacionController::class, 'index'])->middleware('permiso:notificaciones.ver');
+    Route::patch('notificaciones/{notificacion}/leida', [NotificacionController::class, 'marcarLeida'])->middleware('permiso:notificaciones.editar');
+    Route::post('notificaciones/marcar-todas', [NotificacionController::class, 'marcarTodasLeidas'])->middleware('permiso:notificaciones.editar');
 });
