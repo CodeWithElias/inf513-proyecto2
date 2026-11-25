@@ -22,7 +22,10 @@ concurrency:
 jobs:
   desplegar:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # La PRIMERA subida envía ~6 500 archivos (vendor/) uno por uno y tarda más de una hora.
+    # La acción registra lo subido recién al terminar: si se corta, la siguiente vuelve a empezar.
+    # Las siguientes subidas solo envían lo que cambió y son rápidas. 350 min = casi el máximo de GitHub (360).
+    timeout-minutes: 350
     steps:
       - name: Obtener el código
         uses: actions/checkout@v4
@@ -62,6 +65,8 @@ jobs:
           protocol: ftp
           local-dir: ./dist/ftp/proyecto2/
           server-dir: /proyecto2/
+          log-level: minimal
+          timeout: 120000
           # No tocar lo que Laravel genera en el servidor ni el diagnóstico subido a mano
           exclude: |
             **/.git*
