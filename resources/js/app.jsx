@@ -9,6 +9,7 @@ import { AvisosProvider } from './context/AvisosContext';
 import Layout from './components/Layout';
 import RequierePrivilegio from './components/RequierePrivilegio';
 import Login from './pages/Login';
+import CotizacionPublica from './pages/comercial/CotizacionPublica';
 import NoEncontrado from './pages/NoEncontrado';
 import { RUTAS } from './rutas';
 
@@ -31,6 +32,7 @@ function App() {
     return (
         <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/cotizar" element={<CotizacionPublica />} />
             <Route
                 element={
                     <RutaPrivada>

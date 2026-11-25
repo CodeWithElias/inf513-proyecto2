@@ -21,9 +21,9 @@ Sistema de Gestión Publicitaria de TVU / Canal 11 UAGRM, migrado del Proyecto 1
 | CU1 Usuarios, roles y matriz de permisos, unidades, clientes | A | ✅ Hecho |
 | CU2 Redes sociales, plataformas, canales, seguidores | A | ✅ Hecho |
 | CU6 Términos, páginas no autorizadas, ejecuciones | A | ✅ Hecho |
-| CU3 Comercial (empresas, servicios, tarifas, paquetes, proformas, campañas, cotización del visitante) | B | ⬜ Pendiente |
-| Pagos (métodos, pasarela simulada, pago único, planes y cuotas) | B | ⬜ Pendiente |
-| Búsqueda global: endpoint `/buscar` (B) + barra predictiva en el encabezado (C) | B + C | ⬜ Pendiente |
+| ~~CU3 Comercial (empresas, servicios, tarifas, paquetes, proformas, campañas, cotización del visitante)~~ | B | ✅ Hecho |
+| ~~Pagos (métodos, pasarela simulada, pago único, planes y cuotas)~~ | B | ✅ Hecho |
+| Búsqueda global: ~~endpoint `/buscar` (B)~~ + barra predictiva en el encabezado (C) | B + C | 🟡 B hecho / C pendiente |
 | CU4 Material, CU5 Espacios/Pautas/Notificaciones, CU7 Métricas | C | ⬜ Pendiente |
 | Dashboard de estadísticas (negocio + accesos) | C | ⬜ Pendiente (el endpoint de accesos ya existe) |
 | Repositorio en GitHub (primer push) | A | ⬜ Pendiente (repo local listo, sin commit) |
@@ -99,14 +99,14 @@ estados de páginas, tipo de canal), contador de visitas, resumen de bitácora y
 
 | # | Tarea | Detalle | Prioridad |
 |---|---|---|---|
-| B1 | **CU3 Empresas, servicios, tarifas, paquetes** | Portar `NEmpresa`, `NServicio`, `NTarifa` (vigencia), `NPaquete` (descuento y `precio_total`). El modelo `EmpresaAnunciante` ya existe: ampliarlo | Alta |
-| B2 | **CU3 Proformas y campañas** | Portar **exactamente** `NProforma`: subtotal, descuento, total, número `PRO-AAAA-NNNNN`, vencimiento, aprobar o rechazar; `NCampania` | Alta |
-| B3 | Cotización pública del visitante | Catálogo y proforma sin login (registra `visitante`) | Media |
-| B4 | **Pagos: tablas** | Migración con `metodo_pago`, `plan_pago`, `cuota`, `transaccion_pago` (ver sección 3) y trigger `trg_cuota_pagada` | Alta |
-| B5 | **Pagos: lógica y pantallas** | Métodos de pago (Luhn, solo últimos 4 dígitos), pasarela simulada, pago único de proforma, plan de cuotas, pagar cuota, historial | Alta |
-| B6 | **Búsqueda global (backend)** | `GET /buscar?q=` en empresas, servicios, paquetes, campañas y proformas; respeta permisos y "solo lo suyo"; máx. 5 por tipo | Alta |
-| B7 | Datos de prueba de pagos | Seeder para que el dashboard tenga datos | Media |
-| B8 | Opciones para selects | Agregar sus listas en `OpcionesController` (servicios, tarifas, paquetes, proformas…) | Según necesite |
+| ~~B1~~ | ~~**CU3 Empresas, servicios, tarifas, paquetes**~~ | ~~Portar `NEmpresa`, `NServicio`, `NTarifa` (vigencia), `NPaquete` (descuento y `precio_total`). El modelo `EmpresaAnunciante` ya existe: ampliarlo~~ | ✅ Hecho |
+| ~~B2~~ | ~~**CU3 Proformas y campañas**~~ | ~~Portar **exactamente** `NProforma`: subtotal, descuento, total, número `PRO-AAAA-NNNNN`, vencimiento, aprobar o rechazar; `NCampania`~~ | ✅ Hecho |
+| ~~B3~~ | ~~Cotización pública del visitante~~ | ~~Catálogo y proforma sin login (registra `visitante`)~~ | ✅ Hecho |
+| ~~B4~~ | ~~**Pagos: tablas**~~ | ~~Migración con `metodo_pago`, `plan_pago`, `cuota`, `transaccion_pago` (ver sección 3) y trigger `trg_cuota_pagada`~~ | ✅ Hecho |
+| ~~B5~~ | ~~**Pagos: lógica y pantallas**~~ | ~~Métodos de pago (Luhn, solo últimos 4 dígitos), pasarela simulada, pago único de proforma, plan de cuotas, pagar cuota, historial~~ | ✅ Hecho |
+| ~~B6~~ | ~~**Búsqueda global (backend)**~~ | ~~`GET /buscar?q=` en empresas, servicios, paquetes, campañas y proformas; respeta permisos y "solo lo suyo"; máx. 5 por tipo~~ | ✅ Hecho |
+| ~~B7~~ | ~~Datos de prueba de pagos~~ | ~~Seeder para que el dashboard tenga datos~~ | ✅ Hecho |
+| ~~B8~~ | ~~Opciones para selects~~ | ~~Agregar sus listas en `OpcionesController` (servicios, tarifas, paquetes, proformas…)~~ | ✅ Hecho |
 
 Archivos de B: `routes/api/comercial.php`, `app/Services/*` y `app/Http/Controllers/Api/V1/*` de su módulo, y `pages/comercial/*`, `pages/pagos/*`.
 Privilegios ya creados: `empresas.*`, `visitantes.ver`, `servicios.*`, `tarifas.*`, `paquetes.*`, `proformas.*` (+ `aprobar`,
@@ -205,11 +205,11 @@ que lo ejecute, igual que `2026_11_23_000001_seguridad_proyecto2`.
 | 3 | Laravel API + React | ✅ | Pestaña Red del navegador: todo es JSON por `/api/v1` con Axios |
 | 4 | Matriz de acceso y bitácora | ✅ | Ruta sin permiso → 403, registrada como `denegado`; pantalla *Bitácora* con logins, fallos, IP y top recursos |
 | 5 | Temas y accesibilidad | ✅ (falta pulido, C6) | Botón de accesibilidad del encabezado: Niños / Jóvenes / Adultos, Día/Noche auto o manual, tamaño de letra, alto contraste |
-| 6 | Validación cliente y servidor | ✅ en módulos de A · ⬜ B y C | Formulario vacío → errores en el cliente; con Postman → 422 en español |
+| 6 | Validación cliente y servidor | ✅ en módulos de A y B · ⬜ C | Formulario vacío → errores en el cliente; con Postman → 422 en español |
 | 7 | Contador de visitas | ✅ | Pie de página: "Esta página ha sido visitada N veces" |
 | 8 | Dashboard | ⬜ C4 | Gráficos de negocio y de accesos |
-| 9 | Búsqueda global | ⬜ B6 + C5 | Barra predictiva en el encabezado |
-| 10 | Pagos | ⬜ B4 + B5 | Registrar tarjeta, pagar proforma, tarjeta rechazada, plan de 3 cuotas y pagar una |
+| 9 | Búsqueda global | 🟡 ~~B6~~ + ⬜ C5 | Barra predictiva en el encabezado |
+| 10 | ~~Pagos~~ | ✅ ~~B4 + B5~~ | Registrar tarjeta, pagar proforma, tarjeta rechazada, plan de 3 cuotas y pagar una |
 | — | Despliegue | ⬜ A3 | Funciona en `tecnoweb.org.bo/inf513/grupo13sa/proyecto2` |
 | — | GitHub | ⬜ A1 | `inf513-proyecto2` con commits de **los 3 integrantes** |
 

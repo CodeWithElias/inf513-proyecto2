@@ -19,4 +19,9 @@ class EmpresaAnunciante extends Model
     {
         return $this->hasMany(Representante::class, 'id_empresa', 'id_empresa');
     }
+
+    public function proformas(): HasMany
+    {
+        return $this->hasMany(Proforma::class, 'id_empresa', 'id_empresa');
+    }
 }

@@ -19,6 +19,17 @@ import Canales from './pages/redes/Canales';
 import Terminos from './pages/monitoreo/Terminos';
 import Paginas from './pages/monitoreo/Paginas';
 import Ejecuciones from './pages/monitoreo/Ejecuciones';
+// Persona B
+import Empresas from './pages/comercial/Empresas';
+import Visitantes from './pages/comercial/Visitantes';
+import Servicios from './pages/comercial/Servicios';
+import Tarifas from './pages/comercial/Tarifas';
+import Paquetes from './pages/comercial/Paquetes';
+import Proformas from './pages/comercial/Proformas';
+import Campanias from './pages/comercial/Campanias';
+import MetodosPago from './pages/pagos/MetodosPago';
+import Pagos from './pages/pagos/Pagos';
+import PlanesPago from './pages/pagos/PlanesPago';
 
 export const RUTAS = [
     { ruta: '/', componente: Inicio },
@@ -39,16 +50,16 @@ export const RUTAS = [
     { ruta: '/ejecuciones', componente: Ejecuciones, privilegio: 'ejecuciones.ver' },
 
     // ---------------- Persona B: comercial y pagos ----------------
-    { ruta: '/empresas', componente: EnConstruccion, privilegio: 'empresas.ver' },
-    { ruta: '/visitantes', componente: EnConstruccion, privilegio: 'visitantes.ver' },
-    { ruta: '/servicios', componente: EnConstruccion, privilegio: 'servicios.ver' },
-    { ruta: '/tarifas', componente: EnConstruccion, privilegio: 'tarifas.ver' },
-    { ruta: '/paquetes', componente: EnConstruccion, privilegio: 'paquetes.ver' },
-    { ruta: '/proformas', componente: EnConstruccion, privilegio: 'proformas.ver' },
-    { ruta: '/campanias', componente: EnConstruccion, privilegio: 'campanias.ver' },
-    { ruta: '/metodos-pago', componente: EnConstruccion, privilegio: 'metodos_pago.ver' },
-    { ruta: '/pagos', componente: EnConstruccion, privilegio: 'pagos.ver' },
-    { ruta: '/planes-pago', componente: EnConstruccion, privilegio: 'planes_pago.ver' },
+    { ruta: '/empresas', componente: Empresas, privilegio: 'empresas.ver' },
+    { ruta: '/visitantes', componente: Visitantes, privilegio: 'visitantes.ver' },
+    { ruta: '/servicios', componente: Servicios, privilegio: 'servicios.ver' },
+    { ruta: '/tarifas', componente: Tarifas, privilegio: 'tarifas.ver' },
+    { ruta: '/paquetes', componente: Paquetes, privilegio: 'paquetes.ver' },
+    { ruta: '/proformas', componente: Proformas, privilegio: 'proformas.ver' },
+    { ruta: '/campanias', componente: Campanias, privilegio: 'campanias.ver' },
+    { ruta: '/metodos-pago', componente: MetodosPago, privilegio: 'metodos_pago.ver' },
+    { ruta: '/pagos', componente: Pagos, privilegio: 'pagos.ver' },
+    { ruta: '/planes-pago', componente: PlanesPago, privilegio: 'planes_pago.ver' },
 
     // ---------------- Persona C: operación y estadísticas ----------------
     { ruta: '/dashboard', componente: EnConstruccion, privilegio: 'dashboard.ver' },

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
@@ -63,6 +63,11 @@ export default function Login() {
                     <p className="text-xs text-texto-suave mt-6 text-center">
                         Por seguridad, después de 5 intentos fallidos se bloquea el acceso durante un minuto.
                     </p>
+                    <div className="mt-4 pt-4 border-t border-borde text-center">
+                        <Link to="/cotizar" className="text-sm font-medium text-primario hover:underline">
+                            ¿Visitante? Ver catálogo y cotizar sin iniciar sesión →
+                        </Link>
+                    </div>
                     </div>
                 </div>
             </main>
