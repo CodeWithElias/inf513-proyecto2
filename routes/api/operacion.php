@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\V1\EspacioController;
+use App\Http\Controllers\Api\V1\EstadisticaController;
 use App\Http\Controllers\Api\V1\MaterialController;
+use App\Http\Controllers\Api\V1\MetricaController;
 use App\Http\Controllers\Api\V1\NotificacionController;
 use App\Http\Controllers\Api\V1\PautaController;
 use Illuminate\Support\Facades\Route;
@@ -38,4 +40,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('notificaciones', [NotificacionController::class, 'index'])->middleware('permiso:notificaciones.ver');
     Route::patch('notificaciones/{notificacion}/leida', [NotificacionController::class, 'marcarLeida'])->middleware('permiso:notificaciones.editar');
     Route::post('notificaciones/marcar-todas', [NotificacionController::class, 'marcarTodasLeidas'])->middleware('permiso:notificaciones.editar');
+
+    // CU7: Métricas y análisis de impacto
+    Route::get('metricas', [MetricaController::class, 'index'])->middleware('permiso:metricas.ver');
+    Route::post('metricas', [MetricaController::class, 'store'])->middleware('permiso:metricas.crear');
+    Route::get('metricas/resumen', [MetricaController::class, 'resumen'])->middleware('permiso:metricas.ver');
+
+    // C4: Dashboard de estadísticas de negocio
+    Route::get('estadisticas/negocio', [EstadisticaController::class, 'negocio'])->middleware('permiso:dashboard.ver');
 });

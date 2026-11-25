@@ -96,6 +96,13 @@ class OpcionesController extends Controller
                 ->leftJoin('paquete as pa', 'pa.id_paquete', '=', 'dp.id_paquete')
                 ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
                 ->selectRaw("dp.id_detalle as id, COALESCE(s.nombre, pa.nombre, 'Servicio/Paquete') || ' (Cant: ' || dp.cantidad || ')' as nombre, c.id_campania"),
+            'pautas-emitidas' => DB::table('programacion_pauta as pp')
+                ->join('material_publicitario as m', 'm.id_material', '=', 'pp.id_material')
+                ->join('campania as c', 'c.id_campania', '=', 'm.id_campania')
+                ->join('espacio_publicitario as e', 'e.id_espacio', '=', 'pp.id_espacio')
+                ->join('canal_difusion as cd', 'cd.id_canal', '=', 'e.id_canal')
+                ->whereIn('pp.estado', ['emitida', 'programada'])
+                ->selectRaw("pp.id_programacion as id, '#' || pp.id_programacion || ' · ' || m.nombre_archivo || ' (' || cd.nombre || ' · ' || to_char(e.fecha, 'DD/MM/YYYY') || ')' as nombre"),
 
             default => throw new NegocioException("No existe la lista de opciones «{$tipo}».", 404),
         };
