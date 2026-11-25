@@ -7,6 +7,7 @@ import Sidebar from './Sidebar';
 import Footer from './Footer';
 import PanelAccesibilidad from './PanelAccesibilidad';
 import BusquedaGlobal from './BusquedaGlobal';
+import Breadcrumbs from './Breadcrumbs';
 
 /** Estructura de todas las pantallas con sesión: menú lateral, encabezado, contenido y pie. */
 export default function Layout() {
@@ -51,6 +52,7 @@ export default function Layout() {
                     </button>
                 </header>
                 <div className="franja-marca" aria-hidden />
+                <Breadcrumbs />
                 </div>
 
                 <main id="contenido" className="flex-1 p-4 sm:p-6" tabIndex={-1}>
