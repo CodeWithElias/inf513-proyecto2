@@ -84,8 +84,14 @@ class PagosSeeder extends Seeder
             return;
         }
 
-        // 1) Pago único aprobado + intento rechazado previo en la primera proforma
-        $p1 = $proformasAprobadas->first();
+        // Cada cliente solo paga proformas de SU empresa ("solo lo suyo").
+        $deEmpresa = fn (Usuario $u) => $proformasAprobadas->firstWhere('id_empresa', $u->idEmpresa());
+
+        // 1) Pago único aprobado + intento rechazado previo en la proforma del cliente 1
+        $p1 = $deEmpresa($cliente1);
+        if (! $p1) {
+            return;
+        }
         TransaccionPago::create([
             'id_usuario' => $cliente1->id_usuario,
             'id_metodo' => $metodoRechazo->id_metodo,
@@ -110,8 +116,8 @@ class PagosSeeder extends Seeder
             'fecha' => now()->subDays(9),
         ]);
 
-        // 2) Plan de 3 cuotas mensuales sobre la segunda proforma aprobada (1 cuota pagada, 2 pendientes)
-        $p2 = $proformasAprobadas->skip(1)->first();
+        // 2) Plan de 3 cuotas mensuales sobre la proforma del cliente 2 (1 cuota pagada, 2 pendientes)
+        $p2 = $cliente2->id_usuario !== $cliente1->id_usuario ? $deEmpresa($cliente2) : null;
         if ($p2) {
             $base = floor(($p2->total / 3) * 100) / 100;
             $ultima = round($p2->total - ($base * 2), 2);

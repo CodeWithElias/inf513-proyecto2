@@ -48,3 +48,14 @@ export function validar(valores, reglas) {
     }
     return errores;
 }
+
+/**
+ * Igual que validar(), pero con el mismo formato que los errores 422 del servidor:
+ * { campo: ['mensaje'] }. Útil en formularios que leen los errores como errores.campo?.[0].
+ */
+export function validarLista(valores, reglas) {
+    return Object.fromEntries(Object.entries(validar(valores, reglas)).map(([k, v]) => [k, [v]]));
+}
+
+/** Horas "HH:MM" (24 h). */
+export const HORA = { patron: /^([01]\d|2[0-3]):[0-5]\d$/, mensajePatron: 'La hora debe tener el formato HH:MM (ej. 08:30).' };

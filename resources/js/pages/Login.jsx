@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, LogIn } from 'lucide-react';
 import Logo from '../components/Logo';
 import { useAuth } from '../context/AuthContext';
 import { useFormulario } from '../hooks/useFormulario';
@@ -30,7 +30,10 @@ export default function Login() {
 
     return (
         <div className="min-h-screen flex flex-col bg-fondo">
-            <div className="flex justify-end p-3">
+            <div className="flex items-center justify-between p-3">
+                <Link to="/" className="btn btn-secundario text-sm">
+                    <ArrowLeft size={16} /> Volver a la página principal
+                </Link>
                 <PanelAccesibilidad />
             </div>
             <main className="flex-1 flex items-center justify-center p-4">

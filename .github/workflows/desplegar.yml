@@ -1,0 +1,72 @@
+# Despliegue automático a tecnoweb por FTP.
+# Se ejecuta con cada push a main (o a mano desde la pestaña Actions).
+# Arma el paquete con scripts/preparar-ftp.mjs y sube dist/ftp/proyecto2 a /proyecto2.
+#
+# Secrets necesarios (Settings → Secrets and variables → Actions):
+#   FTP_SERVIDOR, FTP_USUARIO, FTP_CONTRASENA
+#   DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+#   APP_KEY_PRODUCCION   (generar una vez con: php artisan key:generate --show)
+
+name: Desplegar en tecnoweb
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Nunca dos despliegues a la vez
+concurrency:
+  group: despliegue-tecnoweb
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Obtener el código
+        uses: actions/checkout@v4
+
+      - name: Instalar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'   # la mínima de Laravel 12; ajustar a la del servidor si es otra
+          tools: composer:v2
+          coverage: none
+
+      - name: Instalar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependencias del frontend
+        run: npm ci
+
+      - name: Armar el paquete (compila el frontend e instala vendor sin dev)
+        run: node scripts/preparar-ftp.mjs --composer composer
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          APP_KEY_PRODUCCION: ${{ secrets.APP_KEY_PRODUCCION }}
+
+      - name: Subir por FTP a /proyecto2 (solo los archivos que cambiaron)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVIDOR }}
+          username: ${{ secrets.FTP_USUARIO }}
+          password: ${{ secrets.FTP_CONTRASENA }}
+          protocol: ftp
+          local-dir: ./dist/ftp/proyecto2/
+          server-dir: /proyecto2/
+          # No tocar lo que Laravel genera en el servidor ni el diagnóstico subido a mano
+          exclude: |
+            **/.git*
+            **/.git*/**
+            laravel/storage/logs/*.log
+            laravel/storage/framework/views/*.php
+            laravel/storage/framework/cache/data/**
+            diagnostico.php

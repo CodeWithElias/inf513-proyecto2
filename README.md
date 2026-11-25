@@ -48,7 +48,26 @@ Contraseña de **todos** los usuarios: `clave123!`
 
 ---
 
-## 2. Qué hay implementado (Persona A)
+## 2. Qué hay implementado
+
+### Módulos de negocio
+
+| Módulo | Responsable | Pantallas (`resources/js/pages`) | API (`routes/api`) |
+|---|---|---|---|
+| CU1 Usuarios, roles y matriz de permisos, unidades, clientes | A | `seguridad/`, `organizacion/` | `seguridad.php` |
+| CU2 Redes sociales, plataformas, canales, seguidores | A | `redes/` | `seguridad.php` |
+| CU6 Términos, páginas no autorizadas, ejecuciones | A | `monitoreo/` | `seguridad.php` |
+| CU3 Empresas, visitantes, servicios, tarifas, paquetes, proformas, campañas | B | `comercial/` | `comercial.php` |
+| **Portada pública** (`/` sin sesión): oferta vigente, búsqueda predictiva del catálogo en el encabezado, "Cotizar" e "Iniciar sesión". Es la primera vista del Visitante; con sesión, `/` muestra el panel de inicio del rol | A | `Portada.jsx` | `GET publico/catalogo` |
+| Cotización pública sin sesión (`/cotizar`; acepta `?paquete=ID` o `?tarifa=ID` para llegar con el ítem ya en el carrito) | B | `comercial/CotizacionPublica.jsx` | `GET publico/catalogo`, `POST publico/cotizar` |
+| Pagos: métodos (Luhn), pasarela simulada, pago único, planes en cuotas | B | `pagos/` | `comercial.php` |
+| Búsqueda global (endpoint con permisos y "solo lo suyo") | B | — | `GET buscar?q=` |
+| CU4 Material publicitario, versiones y revisiones | C | `operacion/Materiales.jsx` | `operacion.php` |
+| CU5 Espacios, pautas (programar, reprogramar, emitir), notificaciones | C | `operacion/` | `operacion.php` |
+| CU7 Métricas de impacto · CU8 Dashboard de negocio y accesos | C | `operacion/Metricas.jsx`, `dashboard/` | `operacion.php` |
+| Barra de búsqueda predictiva y migas de pan en el encabezado | C | `components/BusquedaGlobal.jsx`, `Breadcrumbs.jsx` | — |
+
+### Requisitos transversales
 
 | Requisito | Dónde |
 |---|---|
@@ -61,9 +80,7 @@ Contraseña de **todos** los usuarios: `clave123!`
 | **Contador de visitas** en el footer de todas las vistas | tabla `visita_pagina`, función `fn_registrar_visita`, `Footer.jsx` |
 | Validación cliente + servidor con mensajes en español | `lib/validar.js` + `app/Http/Requests` + `lang/es/validation.php` |
 | Temas Niños / Jóvenes / Adultos × Día/Noche (auto o manual), tamaño de letra, alto contraste | `app.css`, `PreferenciasContext`, `PanelAccesibilidad` |
-| CU1 Usuarios, roles, unidades, clientes | pantallas en `pages/seguridad`, `pages/organizacion` |
-| CU2 Redes sociales, plataformas, canales, seguidores (con gráfico) | `pages/redes` |
-| CU6 Términos, páginas no autorizadas (flujo de estados), ejecuciones | `pages/monitoreo` |
+| Pagos simulados: Luhn, nunca se guarda el número completo ni el CVV; tarjetas de prueba terminadas en `0002` (fondos insuficientes) y `0069` (vencida) se rechazan | `PagoService`, `MetodoPagoService` |
 
 Roles de negocio: **Director**, **Encargado de Unidad** y **Cliente**, además del Administrador.
 
@@ -115,17 +132,20 @@ Respuesta JSON ◀─ RegistrarBitacora (guarda usuario, IP, recurso, código y 
    botones, y `useAvisos()` para mensajes y confirmaciones.
 4. Colores solo con las clases del tema: `bg-primario`, `text-texto-suave`, `border-borde`, `btn btn-primario`, `input`, `tarjeta`…
 
-**Endpoints ya disponibles para el dashboard (C):** `GET /api/v1/bitacora/resumen?dias=14` (permiso `bitacora.ver` o
-`dashboard.ver`) devuelve totales, serie por día, recursos más accedidos e IP más activas.
+**Estadísticas:** `GET /api/v1/bitacora/resumen?dias=14` (accesos) y `GET /api/v1/estadisticas/negocio` (negocio),
+ambos con permiso `dashboard.ver`.
 
-**Búsqueda global (C):** el espacio está reservado en `components/Layout.jsx` (`slot-busqueda`).
+**Validación en el cliente:** `validar()` devuelve `{ campo: 'mensaje' }`; `validarLista()` devuelve el mismo formato que
+los errores 422 del servidor (`{ campo: ['mensaje'] }`).
 
 ---
 
 ## 5. Base de datos (tablas nuevas del Proyecto 2)
 
-Script: `database/sql/01_seguridad.sql` (estructura) y `02_seguridad_datos.sql` (privilegios, asignación a roles y menú).
-La migración `2026_11_23_000001_seguridad_proyecto2` ejecuta ambos.
+Scripts idempotentes en `database/sql/`, ejecutados por las migraciones (ambas **ya aplicadas** en `db_grupo13sa`):
+- `01_seguridad.sql` y `02_seguridad_datos.sql` → migración `2026_11_23_000001_seguridad_proyecto2`
+- `03_pagos.sql` → migración `2026_11_24_000001_pagos_proyecto2`
+- Datos de prueba de pagos: `php artisan db:seed` (`PagosSeeder`, no repite datos si ya existen)
 
 | Tabla / objeto | Uso |
 |---|---|
@@ -135,6 +155,8 @@ La migración `2026_11_23_000001_seguridad_proyecto2` ejecuta ambos.
 | `contador_recurso` | Accesos por recurso (lo actualiza `trg_bitacora_despues_insertar`) |
 | `visita_pagina` + `fn_registrar_visita()` | Contador de visitas del footer |
 | `personal_access_tokens` | Tokens de Sanctum |
+| `metodo_pago`, `plan_pago`, `cuota`, `transaccion_pago` | Módulo de pagos |
+| `trg_cuota_pagada` | Al pagarse todas las cuotas, el plan pasa a `completado` |
 
 > En la BD también existen tablas de una plantilla de la facultad (`persona`, `grupo`, `modulo`, `accion`, `permiso`,
 > `mod_grup`). **No se usan ni se modifican**: por eso las tablas nuevas se llaman `privilegio` y `menu_item`.

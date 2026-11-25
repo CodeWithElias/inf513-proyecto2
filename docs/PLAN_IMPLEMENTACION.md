@@ -6,28 +6,55 @@ Sistema de Gestión Publicitaria de TVU / Canal 11 UAGRM, migrado del Proyecto 1
 - **Equipo:** 3 personas (A, B, C) · **Plazo:** 3 días hábiles (lun 23/11 al mié 25/11/2026)
 - **Despliegue:** `https://www.tecnoweb.org.bo/inf513/grupo13sa/proyecto2`
 - **Repositorio:** `https://github.com/CodeWithElias/inf513-proyecto2`
-- **Última actualización:** 23/11/2026 (fin del día 1)
+- **Última actualización:** 25/11/2026 (revisión final antes del despliegue)
 
 ---
 
 ## 0. Estado general
 
+> **Todo el desarrollo está terminado y verificado contra la BD en línea. Solo falta subir al servidor (A3).**
+
 | Bloque | Responsable | Estado |
 |---|---|---|
 | Proyecto base (Laravel 12 + React 19 + Tailwind 4), conexión a la BD en línea | A | ✅ Hecho |
 | Seguridad: login (Sanctum), RBAC, menú dinámico, bitácora, contador de visitas | A | ✅ Hecho |
-| Estructura base del frontend (layout, menú, Axios, sesión, componentes comunes, `PaginaCrud`) | A (era de C) | ✅ Hecho |
-| Temas Niños/Jóvenes/Adultos × Día/Noche, accesibilidad, logo y colores TVU | A (base) / C (pulido) | 🟡 Funciona; falta pulido visual |
+| Estructura base del frontend (layout, menú, Axios, sesión, componentes comunes, `PaginaCrud`) | A | ✅ Hecho |
+| Temas Niños/Jóvenes/Adultos × Día/Noche, accesibilidad, logo y colores TVU | A + C | ✅ Hecho |
 | CU1 Usuarios, roles y matriz de permisos, unidades, clientes | A | ✅ Hecho |
 | CU2 Redes sociales, plataformas, canales, seguidores | A | ✅ Hecho |
 | CU6 Términos, páginas no autorizadas, ejecuciones | A | ✅ Hecho |
-| ~~CU3 Comercial (empresas, servicios, tarifas, paquetes, proformas, campañas, cotización del visitante)~~ | B | ✅ Hecho |
-| ~~Pagos (métodos, pasarela simulada, pago único, planes y cuotas)~~ | B | ✅ Hecho |
-| Búsqueda global: ~~endpoint `/buscar` (B)~~ + barra predictiva en el encabezado (C) | B + C | 🟡 B hecho / C pendiente |
-| CU4 Material, CU5 Espacios/Pautas/Notificaciones, CU7 Métricas | C | ⬜ Pendiente |
-| Dashboard de estadísticas (negocio + accesos) | C | ⬜ Pendiente (el endpoint de accesos ya existe) |
-| Repositorio en GitHub (primer push) | A | ⬜ Pendiente (repo local listo, sin commit) |
-| Despliegue en tecnoweb | A | ⬜ Pendiente (falta acceso al servidor) |
+| CU3 Comercial (empresas, servicios, tarifas, paquetes, proformas, campañas, cotización del visitante) | B | ✅ Hecho |
+| Pagos (métodos, pasarela simulada, pago único, planes y cuotas) | B | ✅ Hecho (tablas aplicadas en la BD el 25/11) |
+| Búsqueda global: endpoint `/buscar` (B) + barra predictiva en el encabezado (C) | B + C | ✅ Hecho |
+| CU4 Material, CU5 Espacios/Pautas/Notificaciones, CU7 Métricas | C | ✅ Hecho |
+| Dashboard de estadísticas (negocio + accesos) y migas de pan | C | ✅ Hecho |
+| Repositorio en GitHub con commits de los 3 integrantes | A + B + C | ✅ Hecho (falta pasar `develop` → `main`) |
+| **Despliegue en tecnoweb** | A | ⬜ **Pendiente** (el servidor volvió el 25/11: FTP 21 y SSH 22 responden) |
+
+### Verificación final (25/11/2026)
+
+| Prueba | Resultado |
+|---|---|
+| Sintaxis de 156 archivos PHP · 118 rutas API · compilación del frontend | ✅ Sin errores |
+| Recorrido de todos los listados y detalles de la API con **Administrador, Director, Encargado y Cliente** (190 comprobaciones) | ✅ 200 donde hay permiso, 403 donde no, ningún error 500 |
+| "Solo lo suyo": el Cliente solo ve proformas, campañas, pagos y empresa propias; no puede abrir la proforma de otra empresa (403) | ✅ |
+| Búsqueda global respeta permisos (el Encargado no recibe datos comerciales) | ✅ |
+| Endpoints públicos (`/publico/catalogo`, `/publico/cotizar`) y 401 sin sesión | ✅ |
+| Validación en español: tarjeta con Luhn inválido, pago vacío, cotización vacía → 422 | ✅ |
+| Las 36 rutas del menú (BD) tienen pantalla; no queda ninguna "En construcción" | ✅ |
+| Contador de visitas en todas las vistas (incluidos login y cotización pública) | ✅ |
+| Ninguna pantalla usa colores fijos (todos los temas y el alto contraste se aplican en todas) | ✅ |
+
+**Corregido en la revisión final (A, 25/11):**
+- Migración de pagos (`03_pagos.sql`) aplicada en la BD, junto con los datos de prueba: no se había aplicado porque el servidor estaba caído.
+- `PagosSeeder`: ahora cada cliente paga solo proformas de **su** empresa (antes dependía del orden de los datos).
+- Validación **en el cliente** agregada en los 8 formularios de C (Materiales, nueva versión, revisión, Métricas, Pautas, emisión y Espacios), con las mismas reglas de sus FormRequests. Antes solo validaba el servidor y el requisito 6 pide ambos.
+- `docs/DESPLIEGUE.md`: aviso de **no subir `public/hot`** y variables de producción.
+- README actualizado con los módulos de B y C y las tablas de pagos.
+- `.env` y `.env.example` limpiados: solo las 27 variables que se usan (sin Redis, AWS, correo, etc.).
+- **Portada pública** (`/` sin sesión) como primera vista del **Visitante**: oferta vigente (paquetes y servicios con
+  precios), qué puede hacer sin registrarse, **búsqueda predictiva del catálogo en el encabezado de la página principal**
+  (requisito 9) y botones "Cotizar" e "Iniciar sesión". Al cerrar sesión se vuelve a la portada.
 
 ---
 
@@ -116,14 +143,14 @@ Privilegios ya creados: `empresas.*`, `visitantes.ver`, `servicios.*`, `tarifas.
 
 | # | Tarea | Detalle | Prioridad |
 |---|---|---|---|
-| C1 | **CU4 Material y revisiones** | Portar `NMaterial` (validación de formato por tipo de canal y duración), revisión: aprobar, rechazar o pedir corrección, versiones | Alta |
-| C2 | **CU5 Espacios, pautas, notificaciones** | Portar `NEspacio` (sin superposición), `NPauta` (programar, reprogramar, cancelar, publicar), `NNotificacion` (marcar leída) | Alta |
-| C3 | CU7 Métricas y análisis | Portar `NMetrica` y `NAnalisis` (por pauta, campaña y red) | Media |
-| C4 | **Dashboard** (`/dashboard`) | Gráficos de negocio (ingresos por mes, proformas por estado, ocupación, top servicios) con endpoint `/estadisticas/negocio`, y de accesos reutilizando `GET /bitacora/resumen` | Alta |
-| C5 | **Barra de búsqueda predictiva** | En el encabezado (`components/Layout.jsx`, marcado `slot-busqueda`): espera 300 ms, se maneja con teclado, agrupa por tipo. Usa `/buscar` de B | Alta |
-| C6 | Pulido de temas | Revisar los 3 temas en día y noche, y alto contraste, en todas las pantallas; ajustar colores en `resources/css/app.css` | Media |
-| C7 | Migas de pan (breadcrumbs) | Componente bajo el encabezado según la ruta y el menú | Baja |
-| C8 | CU8 Reportes | Reemplazados por el dashboard con filtro de fechas (ver sección 5) | Baja |
+| C1 | **CU4 Material y revisiones** | Portar `NMaterial`, revisión (aprobar, rechazar, pedir corrección), versiones | ✅ Hecho |
+| C2 | **CU5 Espacios, pautas, notificaciones** | `NEspacio` (sin superposición), `NPauta` (programar, reprogramar, cancelar, emitir), `NNotificacion` | ✅ Hecho |
+| C3 | CU7 Métricas y análisis | `NMetrica` y resumen de impacto | ✅ Hecho |
+| C4 | **Dashboard** (`/dashboard`) | `/estadisticas/negocio` + `GET /bitacora/resumen` | ✅ Hecho |
+| C5 | **Barra de búsqueda predictiva** | `components/BusquedaGlobal.jsx` en el encabezado | ✅ Hecho |
+| C6 | Temas | Verificado: ninguna pantalla usa colores fijos; los 3 temas, día/noche y alto contraste se aplican en todas | ✅ Hecho |
+| C7 | Migas de pan (breadcrumbs) | `components/Breadcrumbs.jsx` | ✅ Hecho |
+| C8 | CU8 Reportes | `/reportes` abre el dashboard (recorte acordado, sección 5) | ✅ Hecho |
 
 Archivos de C: `routes/api/operacion.php`, sus Services y Controllers, y `pages/operacion/*`, `pages/dashboard/*`.
 Privilegios ya creados: `materiales.*`, `revisiones.*`, `espacios.*`, `pautas.*`, `notificaciones.*`, `metricas.*`,
@@ -133,12 +160,12 @@ Privilegios ya creados: `materiales.*`, `revisiones.*`, `espacios.*`, `pautas.*`
 
 | # | Tarea | Detalle | Prioridad |
 |---|---|---|---|
-| A1 | **Subir a GitHub** | Primer commit y push de `main`, crear `develop`, invitar a B y C | **Inmediata** (bloquea a B y C) |
-| A2 | **Verificar el servidor de tecnoweb** | `php -v` (Laravel 12 necesita 8.2+), `pdo_pgsql`, composer, SSH o FTP | **Inmediata** (mayor riesgo) |
-| A3 | Despliegue de prueba y final | Seguir `docs/DESPLIEGUE.md` | Alta |
-| A4 | Revisar PRs de B y C | Que cada ruta tenga `permiso:` y que no haya reglas de negocio en Controllers ni en React | Alta |
-| A5 | Ítems de menú nuevos | Si B o C necesitan pantallas que no están en `menu_item`, A los agrega en `02_seguridad_datos.sql` | Según pidan |
-| A6 | README final y usuarios de prueba | Instalación, despliegue, capturas | Media |
+| A1 | Subir a GitHub | Repo con `main` y `develop`, commits de los 3 | ✅ Hecho |
+| A2 | Verificar el servidor | Responden FTP (21) y SSH (22). Falta ver `php -v` y `pdo_pgsql` **en** el servidor (primer paso de A3) | 🟡 Parcial |
+| A3 | **Despliegue final** | Paquete FTP listo y probado bajo `/proyecto2` en local (`scripts/preparar-ftp.mjs` → `dist/ftp/proyecto2`). Falta: subirlo con FileZilla, correr el diagnóstico y pasar `develop` → `main` | 🟡 **Listo para subir** |
+| A4 | Revisar el trabajo de B y C | Revisión final del 25/11 (ver sección 0) | ✅ Hecho |
+| A5 | Ítems de menú | Las 36 rutas del menú tienen pantalla; no hizo falta agregar | ✅ Hecho |
+| A6 | README final y usuarios de prueba | README con los módulos de todos y `docs/DESPLIEGUE.md` | ✅ Hecho |
 
 ---
 
@@ -200,18 +227,18 @@ que lo ejecute, igual que `2026_11_23_000001_seguridad_proyecto2`.
 
 | # | Requisito | Estado | Cómo se demuestra |
 |---|---|---|---|
-| 1 | Diseño y navegación | ✅ (migas de pan pendientes) | Layout coherente, menú según permisos, adaptable a celular |
+| 1 | Diseño y navegación | ✅ | Layout coherente, menú según permisos, migas de pan, adaptable a celular |
 | 2 | RBAC y menú desde la BD | ✅ | Entrar como Director, Encargado y Cliente → menús distintos; quitar un permiso en *Roles y permisos* → la opción desaparece |
 | 3 | Laravel API + React | ✅ | Pestaña Red del navegador: todo es JSON por `/api/v1` con Axios |
 | 4 | Matriz de acceso y bitácora | ✅ | Ruta sin permiso → 403, registrada como `denegado`; pantalla *Bitácora* con logins, fallos, IP y top recursos |
-| 5 | Temas y accesibilidad | ✅ (falta pulido, C6) | Botón de accesibilidad del encabezado: Niños / Jóvenes / Adultos, Día/Noche auto o manual, tamaño de letra, alto contraste |
-| 6 | Validación cliente y servidor | ✅ en módulos de A y B · ⬜ C | Formulario vacío → errores en el cliente; con Postman → 422 en español |
+| 5 | Temas y accesibilidad | ✅ | Botón de accesibilidad del encabezado: Niños / Jóvenes / Adultos, Día/Noche auto o manual, tamaño de letra, alto contraste |
+| 6 | Validación cliente y servidor | ✅ | Formulario vacío → errores en el cliente; con Postman → 422 en español |
 | 7 | Contador de visitas | ✅ | Pie de página: "Esta página ha sido visitada N veces" |
-| 8 | Dashboard | ⬜ C4 | Gráficos de negocio y de accesos |
-| 9 | Búsqueda global | 🟡 ~~B6~~ + ⬜ C5 | Barra predictiva en el encabezado |
-| 10 | ~~Pagos~~ | ✅ ~~B4 + B5~~ | Registrar tarjeta, pagar proforma, tarjeta rechazada, plan de 3 cuotas y pagar una |
-| — | Despliegue | ⬜ A3 | Funciona en `tecnoweb.org.bo/inf513/grupo13sa/proyecto2` |
-| — | GitHub | ⬜ A1 | `inf513-proyecto2` con commits de **los 3 integrantes** |
+| 8 | Dashboard | ✅ | Gráficos de negocio y de accesos (`/dashboard`) |
+| 9 | Búsqueda global | ✅ | Barra predictiva en el encabezado |
+| 10 | Pagos | ✅ | Registrar tarjeta (Luhn), pagar proforma, tarjeta `…0002` rechazada, plan de 3 cuotas y pagar una |
+| — | Despliegue | ⬜ **A3** | Funciona en `tecnoweb.org.bo/inf513/grupo13sa/proyecto2` |
+| — | GitHub | ✅ | `inf513-proyecto2` con commits de **los 3 integrantes** |
 
 ---
 
@@ -220,7 +247,9 @@ que lo ejecute, igual que `2026_11_23_000001_seguridad_proyecto2`.
 | Riesgo / aviso | Qué hacer |
 |---|---|
 | **Lentitud en local** (2 a 6 s por petición): la BD en línea está a unos 400 ms de distancia y `php artisan serve` atiende una petición a la vez | Es normal en desarrollo; en el servidor de tecnoweb será rápido. Ya se optimizó la conexión (`DB_PERSISTENT=true` en `.env` local). Si molesta mucho, usar una copia local de PostgreSQL |
-| PHP del servidor desconocido | A2 a primera hora del día 2. Si es menor a 8.2, hay que bajar a Laravel 11 |
+| PHP del servidor desconocido | Primer paso del despliegue: `php -v` por SSH. Si es menor a 8.2, hay que bajar a Laravel 11 |
+| El servidor de tecnoweb estuvo caído el 24/11 (DNS y puertos) | Volvió el 25/11. Si se repite: no es un problema del código; usar la IP `139.99.68.169` si solo falla el DNS |
+| Subir `public/hot` por error | La página queda en blanco en producción. Ver el aviso en `docs/DESPLIEGUE.md` |
 | Windows bloquea `pdo_pgsql` ("Application Control policy") | Desactivar Smart App Control (Seguridad de Windows → Control de aplicaciones y navegador) y activar `extension=pdo_pgsql` en `php.ini`. Reiniciar `php artisan serve` después |
 | BD compartida con el Proyecto 1 | Nunca `migrate:fresh` ni `migrate:reset`. Las tablas nuevas, con `CREATE TABLE IF NOT EXISTS` |
 | Conflictos en archivos compartidos | Cada uno tiene su archivo de rutas (`routes/api/*.php`) y sus carpetas de páginas. En `rutas.jsx` y `OpcionesController` solo se agregan líneas |
