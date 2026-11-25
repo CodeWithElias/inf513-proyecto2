@@ -22,3 +22,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Paquete generado para el despliegue por FTP (contiene la contraseña de la BD)
+/dist

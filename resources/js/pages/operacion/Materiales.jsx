@@ -26,6 +26,22 @@ import Modal from '../../components/Modal';
 import Campo from '../../components/Campo';
 import Insignia from '../../components/Insignia';
 import { fechaHora } from '../../lib/formato';
+import { validarCampo, validarLista } from '../../lib/validar';
+
+/** Reglas de validación en el cliente (las mismas de MaterialRequest en el servidor). */
+function reglasMaterial(d, { crear = false, conTipo = true } = {}) {
+    const r = {
+        nombre_archivo: { requerido: d.tipo !== 'texto', max: 255, etiqueta: 'nombre del archivo' },
+        url_archivo: { requerido: d.tipo !== 'texto', url: true, max: 500, etiqueta: 'URL del archivo' },
+        texto_publicacion: { requerido: d.tipo === 'texto', max: 3000, etiqueta: 'texto de la publicación' },
+    };
+    if (['video', 'audio'].includes(d.tipo)) {
+        r.duracion_seg = { requerido: true, entero: true, minValor: 1, maxValor: 7200, etiqueta: 'duración (segundos)' };
+    }
+    if (conTipo) r.tipo = { requerido: true, etiqueta: 'tipo de material' };
+    if (crear) r.id_campania = { requerido: true, etiqueta: 'campaña' };
+    return r;
+}
 
 const TIPOS_MATERIAL = [
     { id: 'video', nombre: 'Video (Spot TV / Redes)', icono: Video },
@@ -177,6 +193,12 @@ export default function Materiales() {
 
     const guardarMaterial = async (e) => {
         e.preventDefault();
+        const locales = validarLista(formData, reglasMaterial(formData, { crear: modoForm === 'crear' }));
+        if (Object.keys(locales).length) {
+            setErroresForm(locales);
+            error('Revise los campos marcados en rojo.');
+            return;
+        }
         setEnviando(true);
         setErroresForm({});
         try {
@@ -221,6 +243,14 @@ export default function Materiales() {
 
     const guardarNuevaVersion = async (e) => {
         e.preventDefault();
+        const datosVersion = { ...formVersion, tipo: materialActual.tipo };
+        const locales = validarLista(datosVersion, reglasMaterial(datosVersion, { conTipo: false }));
+        if (Object.keys(locales).length) {
+            setErroresForm(locales);
+            error('Revise los campos marcados en rojo.');
+            return;
+        }
+        setErroresForm({});
         setEnviando(true);
         try {
             const payload = {
@@ -233,6 +263,9 @@ export default function Materiales() {
             setModalVersion(false);
             cargarMateriales();
         } catch (err) {
+            if (err.response?.status === 422 && err.response.data?.errors) {
+                setErroresForm(err.response.data.errors);
+            }
             error(mensajeError(err));
         } finally {
             setEnviando(false);
@@ -263,6 +296,11 @@ export default function Materiales() {
         e.preventDefault();
         if (formRevision.resultado !== 'aprobado' && !formRevision.observaciones.trim()) {
             error('Debe ingresar las observaciones para rechazar o pedir correcciones.');
+            return;
+        }
+        const errObs = validarCampo(formRevision.observaciones, { max: 2000, etiqueta: 'las observaciones' });
+        if (errObs) {
+            error(errObs);
             return;
         }
 
@@ -510,7 +548,7 @@ export default function Materiales() {
                     </>
                 }
             >
-                <form onSubmit={guardarMaterial} className="space-y-3">
+                <form onSubmit={guardarMaterial} noValidate className="space-y-3">
                     {modoForm === 'crear' && (
                         <Campo
                             etiqueta="Campaña publicitaria"
@@ -605,7 +643,7 @@ export default function Materiales() {
                     </>
                 }
             >
-                <form onSubmit={guardarNuevaVersion} className="space-y-3">
+                <form onSubmit={guardarNuevaVersion} noValidate className="space-y-3">
                     <p className="text-sm text-texto-suave">
                         Suba el archivo corregido de acuerdo a las observaciones señaladas por Canal 11. El material
                         volverá al estado <strong className="text-aviso font-medium">Pendiente de revisión</strong>.
@@ -616,7 +654,8 @@ export default function Materiales() {
                         nombre="nombre_archivo"
                         valor={formVersion.nombre_archivo}
                         onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
-                        requerido
+                        error={erroresForm.nombre_archivo?.[0]}
+                        requerido={materialActual?.tipo !== 'texto'}
                     />
 
                     <Campo
@@ -625,7 +664,8 @@ export default function Materiales() {
                         tipo="url"
                         valor={formVersion.url_archivo}
                         onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
-                        requerido
+                        error={erroresForm.url_archivo?.[0]}
+                        requerido={materialActual?.tipo !== 'texto'}
                     />
 
                     {['video', 'audio'].includes(materialActual?.tipo) && (
@@ -635,6 +675,7 @@ export default function Materiales() {
                             tipo="number"
                             valor={formVersion.duracion_seg}
                             onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
+                            error={erroresForm.duracion_seg?.[0]}
                             requerido
                         />
                     )}
@@ -645,6 +686,8 @@ export default function Materiales() {
                         tipo="textarea"
                         valor={formVersion.texto_publicacion}
                         onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
+                        error={erroresForm.texto_publicacion?.[0]}
+                        requerido={materialActual?.tipo === 'texto'}
                     />
                 </form>
             </Modal>
@@ -670,7 +713,7 @@ export default function Materiales() {
                     </>
                 }
             >
-                <form onSubmit={guardarRevision} className="space-y-4">
+                <form onSubmit={guardarRevision} noValidate className="space-y-4">
                     <div>
                         <label className="etiqueta">Resultado de la revisión</label>
                         <div className="grid grid-cols-3 gap-2 mt-1">

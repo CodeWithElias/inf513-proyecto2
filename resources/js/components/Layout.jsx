@@ -19,7 +19,7 @@ export default function Layout() {
     const salir = async () => {
         if (await confirmar('¿Desea cerrar su sesión?', { titulo: 'Cerrar sesión', textoAceptar: 'Cerrar sesión' })) {
             await logout();
-            navegar('/login', { replace: true });
+            navegar('/', { replace: true }); // vuelve a la portada pública
         }
     };
 

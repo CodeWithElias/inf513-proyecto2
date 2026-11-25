@@ -20,6 +20,14 @@ import Modal from '../../components/Modal';
 import Campo from '../../components/Campo';
 import Insignia from '../../components/Insignia';
 import { fecha, fechaHora } from '../../lib/formato';
+import { validarCampo, validarLista } from '../../lib/validar';
+
+/** Reglas en el cliente (las mismas de PautaRequest en el servidor). */
+const REGLAS_PAUTA = {
+    id_material: { requerido: true, etiqueta: 'material aprobado' },
+    id_detalle: { requerido: true, etiqueta: 'servicio contratado' },
+    id_espacio: { requerido: true, etiqueta: 'espacio publicitario' },
+};
 
 const ESTADOS_PAUTA = [
     { id: 'programada', nombre: 'Programada', tono: 'aviso' },
@@ -135,6 +143,12 @@ export default function Pautas() {
 
     const guardarPauta = async (e) => {
         e.preventDefault();
+        const locales = validarLista(formProgramar, REGLAS_PAUTA);
+        if (Object.keys(locales).length) {
+            setErrores(locales);
+            error('Revise los campos marcados en rojo.');
+            return;
+        }
         setEnviando(true);
         setErrores({});
         try {
@@ -195,6 +209,11 @@ export default function Pautas() {
 
     const guardarEmision = async (e) => {
         e.preventDefault();
+        const errUrl = validarCampo(urlPublicacion, { url: true, max: 500, etiqueta: 'el enlace de la publicación' });
+        if (errUrl) {
+            error(errUrl);
+            return;
+        }
         setEnviando(true);
         try {
             await api.patch(`/pautas/${pautaActual.id_programacion}/emitir`, {
@@ -427,7 +446,7 @@ export default function Pautas() {
                     </>
                 }
             >
-                <form onSubmit={guardarPauta} className="space-y-3">
+                <form onSubmit={guardarPauta} noValidate className="space-y-3">
                     <Campo
                         etiqueta="Campaña publicitaria"
                         nombre="id_campania"
@@ -496,7 +515,7 @@ export default function Pautas() {
                     </>
                 }
             >
-                <form onSubmit={guardarReprogramacion} className="space-y-3">
+                <form onSubmit={guardarReprogramacion} noValidate className="space-y-3">
                     <p className="text-sm text-texto-suave">
                         Espacio actual:{' '}
                         <strong className="text-texto font-medium">
@@ -537,7 +556,7 @@ export default function Pautas() {
                     </>
                 }
             >
-                <form onSubmit={guardarEmision} className="space-y-3">
+                <form onSubmit={guardarEmision} noValidate className="space-y-3">
                     <p className="text-sm text-texto-suave">
                         Confirme que la pauta publicitaria ha sido transmitida en TV/Radio o publicada en redes sociales.
                     </p>

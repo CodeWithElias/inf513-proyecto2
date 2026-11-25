@@ -1,0 +1,35 @@
+# =====================================================================
+# /proyecto2/.htaccess  (Laravel bajo subdirectorio en tecnoweb)
+# =====================================================================
+Options -Indexes
+
+# Nunca servir archivos ocultos (.htaccess, .env, .git...)
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase __BASE__/
+
+    # El código de Laravel (laravel/) nunca se sirve por la web
+    RewriteRule ^laravel(/|$) - [F,L]
+
+    # Encabezado Authorization (token Bearer de la API)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Quitar la barra final si no es una carpeta
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Todo lo que no sea un archivo real va a Laravel (API y pantallas de React)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>

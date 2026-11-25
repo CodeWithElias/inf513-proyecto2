@@ -18,6 +18,18 @@ import Tabla from '../../components/Tabla';
 import Modal from '../../components/Modal';
 import Campo from '../../components/Campo';
 import { fecha, fechaHora, numero } from '../../lib/formato';
+import { validarLista } from '../../lib/validar';
+
+/** Reglas en el cliente (las mismas de MetricaRequest en el servidor). */
+const CONTEO = { entero: true, minValor: 0, maxValor: 2147483647 };
+const REGLAS_METRICA = {
+    id_programacion: { requerido: true, etiqueta: 'pauta' },
+    alcance: { requerido: true, ...CONTEO, etiqueta: 'alcance' },
+    impresiones: { requerido: true, ...CONTEO, etiqueta: 'impresiones' },
+    interacciones: { ...CONTEO, etiqueta: 'interacciones' },
+    clics: { ...CONTEO, etiqueta: 'clics' },
+    compartidos: { ...CONTEO, etiqueta: 'compartidos' },
+};
 
 export default function Metricas() {
     const { puede } = useAuth();
@@ -100,6 +112,12 @@ export default function Metricas() {
 
     const guardarMetrica = async (e) => {
         e.preventDefault();
+        const locales = validarLista(formData, REGLAS_METRICA);
+        if (Object.keys(locales).length) {
+            setErrores(locales);
+            error('Revise los campos marcados en rojo.');
+            return;
+        }
         setEnviando(true);
         setErrores({});
         try {
@@ -273,7 +291,7 @@ export default function Metricas() {
                     </>
                 }
             >
-                <form onSubmit={guardarMetrica} className="space-y-3">
+                <form onSubmit={guardarMetrica} noValidate className="space-y-3">
                     <Campo
                         etiqueta="Pauta publicitaria"
                         nombre="id_programacion"
@@ -315,6 +333,7 @@ export default function Metricas() {
                             type="number"
                             valor={formData.interacciones}
                             onChange={(c, v) => setFormData((prev) => ({ ...prev, [c]: v }))}
+                            error={errores.interacciones?.[0]}
                         />
 
                         <Campo
@@ -323,6 +342,7 @@ export default function Metricas() {
                             type="number"
                             valor={formData.clics}
                             onChange={(c, v) => setFormData((prev) => ({ ...prev, [c]: v }))}
+                            error={errores.clics?.[0]}
                         />
 
                         <Campo
@@ -331,6 +351,7 @@ export default function Metricas() {
                             type="number"
                             valor={formData.compartidos}
                             onChange={(c, v) => setFormData((prev) => ({ ...prev, [c]: v }))}
+                            error={errores.compartidos?.[0]}
                         />
                     </div>
                 </form>

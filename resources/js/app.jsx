@@ -9,11 +9,16 @@ import { AvisosProvider } from './context/AvisosContext';
 import Layout from './components/Layout';
 import RequierePrivilegio from './components/RequierePrivilegio';
 import Login from './pages/Login';
+import Portada from './pages/Portada';
 import CotizacionPublica from './pages/comercial/CotizacionPublica';
 import NoEncontrado from './pages/NoEncontrado';
 import { RUTAS } from './rutas';
 
-/** Exige sesión iniciada; si no la hay, envía al login recordando a dónde iba. */
+/**
+ * Exige sesión iniciada. Sin sesión:
+ *  - en "/" se muestra la portada pública (primera vista del Visitante);
+ *  - en cualquier otra ruta privada se envía al login recordando a dónde iba.
+ */
 function RutaPrivada({ children }) {
     const { usuario, cargando } = useAuth();
     const location = useLocation();
@@ -24,7 +29,10 @@ function RutaPrivada({ children }) {
             </div>
         );
     }
-    if (!usuario) return <Navigate to="/login" replace state={{ desde: location.pathname }} />;
+    if (!usuario) {
+        if (location.pathname === '/') return <Portada />;
+        return <Navigate to="/login" replace state={{ desde: location.pathname }} />;
+    }
     return children;
 }
 

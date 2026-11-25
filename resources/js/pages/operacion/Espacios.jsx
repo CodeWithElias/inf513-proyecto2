@@ -9,6 +9,7 @@ import Modal from '../../components/Modal';
 import Campo from '../../components/Campo';
 import Insignia from '../../components/Insignia';
 import { fecha } from '../../lib/formato';
+import { HORA, validarLista } from '../../lib/validar';
 
 const ESTADOS_ESPACIO = [
     { id: 'disponible', nombre: 'Disponible', tono: 'exito' },
@@ -109,6 +110,21 @@ export default function Espacios() {
 
     const guardar = async (e) => {
         e.preventDefault();
+        // Validación en el cliente (las mismas reglas de EspacioRequest en el servidor)
+        const locales = validarLista(formData, {
+            ...(modo === 'crear' ? { id_canal: { requerido: true, etiqueta: 'canal de difusión' } } : {}),
+            fecha: { requerido: true, fecha: true, etiqueta: 'fecha' },
+            hora_inicio: { requerido: true, ...HORA, etiqueta: 'hora de inicio' },
+            hora_fin: { requerido: true, ...HORA, etiqueta: 'hora de fin' },
+        });
+        if (!locales.hora_inicio && !locales.hora_fin && formData.hora_fin <= formData.hora_inicio) {
+            locales.hora_fin = ['La hora de fin debe ser posterior a la hora de inicio.'];
+        }
+        if (Object.keys(locales).length) {
+            setErrores(locales);
+            error('Revise los campos marcados en rojo.');
+            return;
+        }
         setEnviando(true);
         setErrores({});
         try {
@@ -321,7 +337,7 @@ export default function Espacios() {
                     </>
                 }
             >
-                <form onSubmit={guardar} className="space-y-3">
+                <form onSubmit={guardar} noValidate className="space-y-3">
                     <Campo
                         etiqueta="Canal de difusión"
                         nombre="id_canal"

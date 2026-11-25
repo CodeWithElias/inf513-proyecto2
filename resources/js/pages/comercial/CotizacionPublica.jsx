@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, Plus, ShoppingCart, Trash2 } from 'lucide-react';
 import Logo from '../../components/Logo';
 import Campo from '../../components/Campo';
@@ -29,6 +29,30 @@ export default function CotizacionPublica() {
             .catch((e) => setErrorGeneral(mensajeError(e)))
             .finally(() => setCargando(false));
     }, []);
+
+    // Si se llega desde la portada con ?paquete=ID o ?tarifa=ID, ese ítem se agrega al carrito una sola vez.
+    const [params] = useSearchParams();
+    const preseleccionado = useRef(false);
+    useEffect(() => {
+        if (cargando || preseleccionado.current) return;
+        preseleccionado.current = true;
+        const idPaquete = Number(params.get('paquete'));
+        const idTarifa = Number(params.get('tarifa'));
+        const pq = idPaquete ? catalogo.paquetes.find((p) => p.id_paquete === idPaquete) : null;
+        if (pq) {
+            agregarAlCarrito({ clave: `p-${pq.id_paquete}`, id_paquete: pq.id_paquete, nombre: `Paquete: ${pq.nombre}`, precio: Number(pq.precio_total) });
+        }
+        if (idTarifa) {
+            for (const s of catalogo.servicios) {
+                const t = s.tarifas?.find((x) => x.id_tarifa === idTarifa);
+                if (t) {
+                    agregarAlCarrito({ clave: `t-${t.id_tarifa}`, id_tarifa: t.id_tarifa, nombre: `${s.nombre} (${t.unidad_cobro ?? 'unidad'})`, precio: Number(t.monto) });
+                    break;
+                }
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [cargando]);
 
     const agregarAlCarrito = (item) => {
         setCarrito((prev) => {
@@ -90,17 +114,20 @@ export default function CotizacionPublica() {
         <div className="min-h-screen flex flex-col bg-fondo">
             <header className="bg-superficie border-b border-borde">
                 <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
+                    <Link to="/" className="flex items-center gap-3" aria-label="Volver a la página principal">
                         <Logo className="size-10" />
                         <div>
                             <p className="font-bold leading-tight">TVU · Canal 11 UAGRM</p>
                             <p className="text-xs text-texto-suave">Catálogo publicitario y cotización en línea</p>
                         </div>
-                    </div>
+                    </Link>
                     <div className="flex items-center gap-2">
                         <PanelAccesibilidad />
-                        <Link to="/login" className="btn btn-secundario text-sm">
-                            <ArrowLeft size={16} /> Iniciar sesión
+                        <Link to="/" className="btn btn-secundario text-sm">
+                            <ArrowLeft size={16} /> <span className="hidden sm:inline">Volver al</span> inicio
+                        </Link>
+                        <Link to="/login" className="btn btn-primario text-sm hidden sm:inline-flex">
+                            Iniciar sesión
                         </Link>
                     </div>
                 </div>
