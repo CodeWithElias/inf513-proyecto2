@@ -37,7 +37,7 @@ tecnoweb → Run workflow*.
    |---|---|
    | `FTP_SERVIDOR` | host del FTP (el que se usa en FileZilla) |
    | `FTP_USUARIO` / `FTP_CONTRASENA` | credenciales FTP del grupo |
-   | `DB_HOST` | `db.tecnoweb.org.bo` |
+   | `DB_HOST` | **`127.0.0.1`** (desde el servidor, `db.tecnoweb.org.bo` rechaza la conexión porque apunta a la IP pública de la misma máquina) |
    | `DB_PORT` | `5432` |
    | `DB_DATABASE` / `DB_USERNAME` | `db_grupo13sa` / `grupo13sa` |
    | `DB_PASSWORD` | contraseña de la BD |

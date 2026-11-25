@@ -54,6 +54,9 @@ const leerEnv = (archivo) =>
           );
 const envLocal = leerEnv(path.join(raiz, '.env'));
 const local = {};
+// En el servidor, PostgreSQL está en la misma máquina: db.tecnoweb.org.bo (IP pública) rechaza la
+// conexión desde adentro, así que el host de producción es 127.0.0.1 (nunca el del .env local).
+envLocal.DB_HOST = '127.0.0.1';
 for (const k of ['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD']) {
     local[k] = process.env[k] || envLocal[k];
     if (!local[k]) {
