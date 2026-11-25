@@ -6,6 +6,8 @@ import { useAvisos } from '../context/AvisosContext';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
 import PanelAccesibilidad from './PanelAccesibilidad';
+import BusquedaGlobal from './BusquedaGlobal';
+import Breadcrumbs from './Breadcrumbs';
 
 /** Estructura de todas las pantallas con sesión: menú lateral, encabezado, contenido y pie. */
 export default function Layout() {
@@ -35,8 +37,10 @@ export default function Layout() {
                         <Menu size={22} />
                     </button>
 
-                    {/* Persona C: aquí va <BusquedaGlobal /> (búsqueda predictiva en el encabezado) */}
-                    <div className="flex-1" id="slot-busqueda" />
+                    {/* Persona C: búsqueda predictiva en el encabezado (C5) */}
+                    <div className="flex-1 min-w-0 flex items-center justify-start max-w-lg" id="slot-busqueda">
+                        <BusquedaGlobal />
+                    </div>
 
                     <PanelAccesibilidad />
                     <Link to="/perfil" className="hidden sm:flex items-center gap-2 text-sm hover:underline" title={usuario?.email}>
@@ -48,6 +52,7 @@ export default function Layout() {
                     </button>
                 </header>
                 <div className="franja-marca" aria-hidden />
+                <Breadcrumbs />
                 </div>
 
                 <main id="contenido" className="flex-1 p-4 sm:p-6" tabIndex={-1}>

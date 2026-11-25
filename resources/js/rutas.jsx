@@ -30,6 +30,13 @@ import Campanias from './pages/comercial/Campanias';
 import MetodosPago from './pages/pagos/MetodosPago';
 import Pagos from './pages/pagos/Pagos';
 import PlanesPago from './pages/pagos/PlanesPago';
+// Persona C
+import Dashboard from './pages/dashboard/Dashboard';
+import Materiales from './pages/operacion/Materiales';
+import Espacios from './pages/operacion/Espacios';
+import Pautas from './pages/operacion/Pautas';
+import Notificaciones from './pages/operacion/Notificaciones';
+import Metricas from './pages/operacion/Metricas';
 
 export const RUTAS = [
     { ruta: '/', componente: Inicio },
@@ -62,11 +69,11 @@ export const RUTAS = [
     { ruta: '/planes-pago', componente: PlanesPago, privilegio: 'planes_pago.ver' },
 
     // ---------------- Persona C: operación y estadísticas ----------------
-    { ruta: '/dashboard', componente: EnConstruccion, privilegio: 'dashboard.ver' },
-    { ruta: '/materiales', componente: EnConstruccion, privilegio: 'materiales.ver' },
-    { ruta: '/espacios', componente: EnConstruccion, privilegio: 'espacios.ver' },
-    { ruta: '/pautas', componente: EnConstruccion, privilegio: 'pautas.ver' },
-    { ruta: '/notificaciones', componente: EnConstruccion, privilegio: 'notificaciones.ver' },
-    { ruta: '/metricas', componente: EnConstruccion, privilegio: 'metricas.ver' },
-    { ruta: '/reportes', componente: EnConstruccion, privilegio: 'reportes.ver' },
+    { ruta: '/dashboard', componente: Dashboard, privilegio: 'dashboard.ver' },
+    { ruta: '/materiales', componente: Materiales, privilegio: 'materiales.ver' },
+    { ruta: '/espacios', componente: Espacios, privilegio: 'espacios.ver' },
+    { ruta: '/pautas', componente: Pautas, privilegio: 'pautas.ver' },
+    { ruta: '/notificaciones', componente: Notificaciones, privilegio: 'notificaciones.ver' },
+    { ruta: '/metricas', componente: Metricas, privilegio: 'metricas.ver' },
+    { ruta: '/reportes', componente: Dashboard, privilegio: 'reportes.ver' },
 ];
