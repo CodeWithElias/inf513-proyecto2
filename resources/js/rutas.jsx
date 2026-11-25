@@ -30,6 +30,8 @@ import Campanias from './pages/comercial/Campanias';
 import MetodosPago from './pages/pagos/MetodosPago';
 import Pagos from './pages/pagos/Pagos';
 import PlanesPago from './pages/pagos/PlanesPago';
+// Persona C
+import Materiales from './pages/operacion/Materiales';
 
 export const RUTAS = [
     { ruta: '/', componente: Inicio },
@@ -63,7 +65,7 @@ export const RUTAS = [
 
     // ---------------- Persona C: operación y estadísticas ----------------
     { ruta: '/dashboard', componente: EnConstruccion, privilegio: 'dashboard.ver' },
-    { ruta: '/materiales', componente: EnConstruccion, privilegio: 'materiales.ver' },
+    { ruta: '/materiales', componente: Materiales, privilegio: 'materiales.ver' },
     { ruta: '/espacios', componente: EnConstruccion, privilegio: 'espacios.ver' },
     { ruta: '/pautas', componente: EnConstruccion, privilegio: 'pautas.ver' },
     { ruta: '/notificaciones', componente: EnConstruccion, privilegio: 'notificaciones.ver' },

@@ -67,6 +67,14 @@ class OpcionesController extends Controller
                 ->when($actor && ! $actor->esPersonal(), fn ($b) => $b->where('id_usuario', $actor->id_usuario))
                 ->selectRaw("id_metodo as id, COALESCE(marca, tipo) || COALESCE(' •••• ' || ultimos4, '') || ' · ' || titular as nombre, tipo, ultimos4, predeterminado"),
 
+            // Persona C - Operación y Material
+            'campanias' => DB::table('campania as c')
+                ->join('proforma as p', 'p.id_proforma', '=', 'c.id_proforma')
+                ->leftJoin('empresa_anunciante as e', 'e.id_empresa', '=', 'p.id_empresa')
+                ->whereIn('c.estado', ['activa', 'pausada'])
+                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->selectRaw("c.id_campania as id, c.nombre || COALESCE(' · ' || e.razon_social, '') || ' (' || c.estado || ')' as nombre"),
+
             default => throw new NegocioException("No existe la lista de opciones «{$tipo}».", 404),
         };
 
