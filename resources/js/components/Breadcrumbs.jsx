@@ -23,6 +23,9 @@ export default function Breadcrumbs() {
         if (RUTAS_ESPECIALES[pathname]) {
             return RUTAS_ESPECIALES[pathname];
         }
+        if (pathname.startsWith('/contratar/')) {
+            return { grupo: 'Comercial', pagina: 'Contratación de la proforma' };
+        }
 
         // Buscar en el árbol dinámico del menú cargado desde la BD
         for (const item of menu || []) {

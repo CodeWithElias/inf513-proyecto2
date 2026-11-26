@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\NegocioException;
 use App\Models\Campania;
 use App\Models\MaterialPublicitario;
+use App\Models\ProgramacionPauta;
 use App\Models\RevisionMaterial;
 use App\Models\Usuario;
 use App\Support\ArchivoMaterial;
@@ -19,6 +20,10 @@ use Illuminate\Support\Facades\DB;
  */
 class MaterialService
 {
+    public function __construct(private readonly AvisoService $avisos)
+    {
+    }
+
     /** Listado paginado con filtros y aislamiento por empresa para rol Cliente. */
     public function listar(array $filtros, int $porPagina, ?Usuario $actor = null): LengthAwarePaginator
     {
@@ -107,6 +112,7 @@ class MaterialService
             if ($contenido['archivo']) {
                 $material->update(['url_archivo' => ArchivoMaterial::guardar($contenido['archivo'], $material->id_material, 1, $contenido['formato'])]);
             }
+            $this->avisarParaRevision($material, $campania, $actor, false);
 
             return $material;
         });
@@ -173,6 +179,7 @@ class MaterialService
             'estado' => MaterialPublicitario::ESTADO_PENDIENTE,
             'fecha_carga' => now(),
         ]);
+        $this->avisarParaRevision($material, $material->campania, $actor, true);
 
         return $material;
     }
@@ -189,7 +196,7 @@ class MaterialService
         // Validar que no esté programado en una pauta
         $pautasProgramadas = DB::table('programacion_pauta')
             ->where('id_material', $material->id_material)
-            ->whereIn('estado', ['programada', 'emitida'])
+            ->whereIn('estado', [ProgramacionPauta::ESTADO_PROGRAMADA, ProgramacionPauta::ESTADO_EMITIDA])
             ->count();
 
         if ($pautasProgramadas > 0) {
@@ -237,6 +244,7 @@ class MaterialService
             ]);
 
             $material->update(['estado' => $resultado]);
+            $this->avisarRevision($material, $resultado, $observaciones, $revisor);
 
             return $revision;
         });
@@ -252,6 +260,57 @@ class MaterialService
             ->orderByDesc('fecha')
             ->get()
             ->all();
+    }
+
+    // --- Avisos del flujo ---
+
+    private function avisarParaRevision(MaterialPublicitario $m, Campania $campania, Usuario $actor, bool $esVersion): void
+    {
+        $campania->loadMissing('proforma.empresa:id_empresa,razon_social');
+        if ($campania->proforma?->estado === 'pendiente') {
+            return; // contratación en curso: el aviso sale al confirmarla
+        }
+        $quien = $campania->proforma?->empresa?->razon_social ?? 'El cliente';
+        $this->avisos->alPersonal('revisiones.crear',
+            ($esVersion ? "Nueva versión v{$m->version} por revisar" : 'Material nuevo por revisar').": {$m->nombre_archivo}",
+            "{$quien} cargó «{$m->nombre_archivo}» ({$m->tipo}) para la campaña «{$campania->nombre}». Revíselo en «Material publicitario» y apruébelo, pida correcciones o recházelo.",
+            $actor);
+        // Si lo cargó el personal en nombre del cliente, el cliente también se entera
+        if (! $actor->esCliente()) {
+            $this->avisos->alCliente($campania->proforma, "Material cargado: {$m->nombre_archivo}",
+                "Canal 11 cargó «{$m->nombre_archivo}» en su campaña «{$campania->nombre}». Quedó pendiente de revisión.", $actor);
+        }
+    }
+
+    private function avisarRevision(MaterialPublicitario $m, string $resultado, string $observaciones, Usuario $revisor): void
+    {
+        $m->loadMissing('campania.proforma');
+        $campania = $m->campania;
+        $obs = $observaciones !== '' ? " Observaciones: {$observaciones}" : '';
+        [$titulo, $mensaje] = match ($resultado) {
+            RevisionMaterial::RESULTADO_APROBADO => [
+                "Material aprobado: {$m->nombre_archivo}",
+                "Su material «{$m->nombre_archivo}» de la campaña «{$campania->nombre}» fue aprobado.".$obs.' '.
+                ($campania->proforma?->situacionPago()['habilita_pautas']
+                    ? 'Canal 11 programará sus pautas en los espacios contratados.'
+                    : 'Para que se programen sus pautas falta completar el pago de la proforma en «Pagos».'),
+            ],
+            RevisionMaterial::RESULTADO_CORRECCION => [
+                "Corrija su material: {$m->nombre_archivo}",
+                "Canal 11 pidió correcciones a «{$m->nombre_archivo}».".$obs.' Suba la versión corregida desde «Material publicitario» (botón «Subir nueva versión»).',
+            ],
+            default => [
+                "Material rechazado: {$m->nombre_archivo}",
+                "Su material «{$m->nombre_archivo}» fue rechazado y no se emitirá.".$obs.' Puede cargar otra pieza para la campaña.',
+            ],
+        };
+        $destinos = array_merge($this->avisos->cliente($campania->proforma), [(int) $m->id_usuario]);
+        $this->avisos->enviar($destinos, $titulo, $mensaje, null, $revisor);
+        // Aprobado y pagado: el personal que programa ya puede crear las pautas
+        if ($resultado === RevisionMaterial::RESULTADO_APROBADO && $campania->proforma?->situacionPago()['habilita_pautas']) {
+            $this->avisos->alPersonal('pautas.crear', "Listo para programar: {$m->nombre_archivo}",
+                "El material de la campaña «{$campania->nombre}» está aprobado y la proforma pagada. Ya puede programar sus pautas.", $revisor);
+        }
     }
 
     // --- Helpers de validación interna ---
@@ -361,7 +420,10 @@ class MaterialService
         $idEmpresaActor = $actor->idEmpresa();
         $idEmpresaCampania = $campania->proforma?->id_empresa;
 
-        if ($idEmpresaActor === null || (int) $idEmpresaActor !== (int) $idEmpresaCampania) {
+        if ($idEmpresaActor === null) {
+            throw new NegocioException('Para cargar material primero registre su empresa en «Mi perfil»: las proformas que hizo como visitante pasarán a su empresa.', 403);
+        }
+        if ((int) $idEmpresaActor !== (int) $idEmpresaCampania) {
             throw new NegocioException("Usted no es representante de la empresa que contrató la campaña «{$campania->nombre}».", 403);
         }
     }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Plus,
     CalendarClock,
@@ -31,7 +32,7 @@ const REGLAS_PAUTA = {
 
 const ESTADOS_PAUTA = [
     { id: 'programada', nombre: 'Programada', tono: 'aviso' },
-    { id: 'emitida', nombre: 'Emitida / Publicada', tono: 'exito' },
+    { id: 'publicada', nombre: 'Emitida / Publicada', tono: 'exito' },
     { id: 'cancelada', nombre: 'Cancelada', tono: 'peligro' },
 ];
 
@@ -40,12 +41,13 @@ const MAPA_ESTADO = Object.fromEntries(ESTADOS_PAUTA.map((e) => [e.id, e]));
 export default function Pautas() {
     const { puede, usuario } = useAuth();
     const { exito, error, confirmar } = useAvisos();
-    const esCliente = usuario?.rol?.nombre === 'Cliente';
+    const esCliente = usuario?.rol === 'Cliente';
 
     const [pautas, setPautas] = useState([]);
     const [meta, setMeta] = useState({ current_page: 1, last_page: 1, total: 0 });
     const [cargando, setCargando] = useState(false);
-    const [filtros, setFiltros] = useState({ id_campania: '', estado: '', q: '', page: 1 });
+    const [params] = useSearchParams();
+    const [filtros, setFiltros] = useState({ id_campania: '', estado: params.get('estado') ?? '', q: params.get('q') ?? '', page: 1 });
 
     // Opciones para formularios
     const [opcionesCampania, setOpcionesCampania] = useState([]);

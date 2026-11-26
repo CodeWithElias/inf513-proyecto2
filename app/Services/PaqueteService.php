@@ -95,6 +95,12 @@ class PaqueteService
                 ? "El paquete {$paquete->nombre} ya está activo."
                 : "El paquete {$paquete->nombre} ya está dado de baja.");
         }
+        if ($activo) {
+            $inactivas = $paquete->items()->whereHas('tarifa', fn ($q) => $q->where('activo', false))->count();
+            if ($inactivas > 0) {
+                throw new NegocioException("No se puede reactivar el paquete {$paquete->nombre}: incluye {$inactivas} tarifa(s) deshabilitada(s). Modifique el paquete primero.");
+            }
+        }
         $paquete->update(['activo' => $activo]);
 
         return $paquete->load(self::RELACIONES);

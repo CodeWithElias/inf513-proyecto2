@@ -99,7 +99,13 @@ if (function_exists('curl_init')) {
     $fila('Rewrite', 'Rutas de React llegan a Laravel (mod_rewrite + .htaccess)', $c3 === 200 && str_contains($b3, 'id="app"'), "HTTP {$c3}");
     [$c4, $b4] = $pedir("{$raiz}/api/v1/auth/me", ['Accept: application/json']);
     $fila('Rewrite', 'API responde 401 en JSON sin sesión', $c4 === 401 && str_contains($b4, 'message'), "HTTP {$c4}: ".mb_substr(strip_tags($b4), 0, 120));
+    // Pagos: el servidor debe poder salir a internet hacia Stripe (sin clave responde 401, que igual prueba la conexión)
+    [$c5] = $pedir('https://api.stripe.com/v1/charges');
+    $fila('Pagos', 'Conexión saliente a api.stripe.com', $c5 === 401, $c5 === 401 ? 'Stripe responde (HTTP 401 sin clave: correcto)' : "HTTP {$c5}: el servidor no llega a Stripe; los pagos no funcionarán");
 }
+@include_once __DIR__.'/laravel/entorno.php'; // deja la configuración en $_ENV
+$fila('Pagos', 'Claves de Stripe configuradas', str_starts_with((string) ($_ENV['STRIPE_KEY'] ?? ''), 'pk_') && str_starts_with((string) ($_ENV['STRIPE_SECRET'] ?? ''), 'sk_'),
+    'STRIPE_KEY (pk_…) y STRIPE_SECRET (sk_…) en laravel/entorno.php');
 
 // ---------------------------------------------------------------- Salida
 $errores = count(array_filter($filas, fn ($f) => $f[2] === false));

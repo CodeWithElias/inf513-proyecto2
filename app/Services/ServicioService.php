@@ -54,6 +54,12 @@ class ServicioService
                 ? "El servicio {$servicio->nombre} ya está activo."
                 : "El servicio {$servicio->nombre} ya está dado de baja.");
         }
+        if (! $activo) {
+            $tarifas = $servicio->tarifas()->where('activo', true)->count();
+            if ($tarifas > 0) {
+                throw new NegocioException("No se puede dar de baja el servicio {$servicio->nombre}: tiene {$tarifas} tarifa(s) activa(s). Deshabilítelas primero.");
+            }
+        }
         $servicio->update(['activo' => $activo]);
 
         return $servicio;

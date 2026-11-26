@@ -21,6 +21,12 @@ use Illuminate\Support\Facades\DB;
  */
 class ProformaService
 {
+    public function __construct(
+        private readonly AvisoService $avisos,
+        private readonly CampaniaService $campanias,
+    ) {
+    }
+
     private const RELACIONES_LISTA = [
         'empresa:id_empresa,razon_social,nit',
         'visitante:id_visitante,nombre,email,telefono',
@@ -53,7 +59,8 @@ class ProformaService
             ->when($f['estado'] ?? null, fn ($q, $v) => $q->where('estado', $v))
             ->when($f['id_empresa'] ?? null, fn ($q, $v) => $q->where('id_empresa', $v))
             ->orderByDesc('id_proforma')
-            ->paginate($porPagina);
+            ->paginate($porPagina)
+            ->through(fn (Proforma $p) => $this->conSituacionPago($p));
     }
 
     public function obtener(Proforma $proforma, Usuario $actor): Proforma
@@ -61,7 +68,13 @@ class ProformaService
         $this->exigirAcceso($proforma, $actor);
         $this->verificarVencimiento($proforma);
 
-        return $proforma->load(self::RELACIONES_DETALLE);
+        return $this->conSituacionPago($proforma->load(self::RELACIONES_DETALLE));
+    }
+
+    /** Las aprobadas llevan su situación de pago (paso previo a programar pautas). */
+    private function conSituacionPago(Proforma $p): Proforma
+    {
+        return $p->setAttribute('situacion_pago', $p->estado === 'aprobada' ? $p->situacionPago() : null);
     }
 
     public function crear(array $d, Usuario $actor): Proforma
@@ -92,7 +105,7 @@ class ProformaService
         $this->validarDescuento($descuento, $subtotal);
         $total = round($subtotal - $descuento, 2);
 
-        return DB::transaction(function () use ($fechaEmision, $fechaValidez, $descuento, $subtotal, $total, $idEmpresa, $idVisitante, $lineas) {
+        return DB::transaction(function () use ($fechaEmision, $fechaValidez, $descuento, $subtotal, $total, $idEmpresa, $idVisitante, $lineas, $actor) {
             $proforma = Proforma::create([
                 'nro_proforma' => $this->generarNumero(),
                 'fecha_emision' => $fechaEmision,
@@ -107,6 +120,16 @@ class ProformaService
 
             foreach ($lineas as $linea) {
                 DetalleProforma::create([...$linea, 'id_proforma' => $proforma->id_proforma]);
+            }
+
+            // Siguiente paso: la otra parte revisa y aprueba la proforma
+            $monto = number_format($total, 2, ',', '.');
+            if ($actor->esCliente()) {
+                $this->avisos->alPersonal('proformas.aprobar', "Nueva proforma {$proforma->nro_proforma} por revisar",
+                    "Un cliente generó la proforma {$proforma->nro_proforma} por Bs {$monto}. Revísela y apruébela o recházela.", $actor);
+            } else {
+                $this->avisos->alCliente($proforma, "Tiene una proforma nueva: {$proforma->nro_proforma}",
+                    "Canal 11 le preparó la proforma {$proforma->nro_proforma} por Bs {$monto}. Revísela en «Proformas» y apruébela para continuar.", $actor);
             }
 
             return $proforma->load(self::RELACIONES_DETALLE);
@@ -138,7 +161,7 @@ class ProformaService
         $this->validarDescuento($descuento, $subtotal);
         $total = round($subtotal - $descuento, 2);
 
-        return DB::transaction(function () use ($proforma, $fechaValidez, $descuento, $subtotal, $total, $lineas) {
+        return DB::transaction(function () use ($proforma, $fechaValidez, $descuento, $subtotal, $total, $lineas, $actor) {
             $proforma->update([
                 'fecha_validez' => $fechaValidez,
                 'subtotal' => $subtotal,
@@ -150,6 +173,13 @@ class ProformaService
             foreach ($lineas as $linea) {
                 DetalleProforma::create([...$linea, 'id_proforma' => $proforma->id_proforma]);
             }
+
+            // La otra parte se entera del cambio antes de aprobar
+            $monto = number_format($total, 2, ',', '.');
+            $mensaje = "La proforma {$proforma->nro_proforma} fue modificada; nuevo total Bs {$monto}. Revísela antes de aprobarla.";
+            $actor->esCliente()
+                ? $this->avisos->alPersonal('proformas.aprobar', "Proforma {$proforma->nro_proforma} modificada", $mensaje, $actor)
+                : $this->avisos->alCliente($proforma, "Proforma {$proforma->nro_proforma} modificada", $mensaje, $actor);
 
             return $proforma->load(self::RELACIONES_DETALLE);
         });
@@ -169,18 +199,71 @@ class ProformaService
         if (! in_array($estado, ['aprobada', 'rechazada'], true)) {
             throw new NegocioException('Solo puede aprobar o rechazar una proforma pendiente.');
         }
+        if ($estado === 'aprobada') {
+            throw new NegocioException("La proforma {$proforma->nro_proforma} se aprueba completando la contratación: datos de la campaña, material de cada servicio, días y horarios, y pago. Use «Contratar».");
+        }
 
-        $proforma->update(['estado' => $estado]);
+        DB::transaction(function () use ($proforma, $estado, $actor) {
+            $proforma->update(['estado' => $estado]);
 
-        return $proforma->load(self::RELACIONES_DETALLE);
+            // Solo llega aquí el rechazo: se suelta lo que la contratación hubiera apartado
+            $this->liberarContratacion([$proforma->id_proforma]);
+            $this->avisarCambioEstado($proforma, $estado, $actor, null);
+        });
+
+        return $this->conSituacionPago($proforma->load(self::RELACIONES_DETALLE));
+    }
+
+    /** Último paso de la contratación guiada (ContratacionService::confirmar), dentro de su transacción. */
+    public function aprobarPorContratacion(Proforma $proforma): void
+    {
+        $proforma->update(['estado' => 'aprobada']);
+        $this->campanias->crearDesdeProforma($proforma); // por si no tuviera (no debería)
+    }
+
+    /**
+     * Proforma rechazada o vencida con la contratación a medias: se sueltan los horarios apartados
+     * y la campaña en preparación se cancela (el material queda como historial).
+     */
+    private function liberarContratacion(array $idsProforma): void
+    {
+        if (! $idsProforma) {
+            return;
+        }
+        DB::table('contratacion_espacio')->whereNull('id_programacion')
+            ->whereIn('id_linea', DB::table('contratacion_servicio')->whereIn('id_proforma', $idsProforma)->select('id_linea'))
+            ->delete();
+        DB::table('campania')->whereIn('id_proforma', $idsProforma)->whereIn('estado', ['activa', 'pausada'])
+            ->update(['estado' => 'cancelada']);
+    }
+
+    /** Avisa a la otra parte (cliente o personal) qué pasó y cuál es el siguiente paso. */
+    private function avisarCambioEstado(Proforma $proforma, string $estado, Usuario $actor, ?\App\Models\Campania $campania): void
+    {
+        $nro = $proforma->nro_proforma;
+        if ($estado === 'aprobada') {
+            $siguiente = $campania ? "Se abrió la campaña «{$campania->nombre}». " : '';
+            $this->avisos->alCliente($proforma, "Proforma {$nro} aprobada",
+                $siguiente.'Siguientes pasos: 1) pague la proforma en «Pagos» (al contado o en cuotas) y 2) cargue el material publicitario de la campaña para su revisión.', $actor);
+            $this->avisos->alPersonal('campanias.editar', "Proforma {$nro} aprobada",
+                $siguiente.'Revise el nombre y las fechas de la campaña. Las pautas se podrán programar cuando la proforma esté pagada y el material aprobado.', $actor);
+
+            return;
+        }
+        $this->avisos->alCliente($proforma, "Proforma {$nro} rechazada",
+            'La proforma fue rechazada. Si necesita otra cotización, genere una nueva desde «Proformas» o desde la portada.', $actor);
+        if ($actor->esCliente()) {
+            $this->avisos->alPersonal('proformas.aprobar', "El cliente rechazó la proforma {$nro}", 'El cliente no aceptó la cotización.', $actor);
+        }
     }
 
     public function eliminar(Proforma $proforma, Usuario $actor): void
     {
         $this->exigirAcceso($proforma, $actor);
 
-        if ($proforma->estado === 'aprobada') {
-            throw new NegocioException('No se puede eliminar una proforma aprobada.');
+        // Trazabilidad: las rechazadas y vencidas quedan como historial (en el Proyecto 1 no se borraban)
+        if ($proforma->estado !== 'pendiente') {
+            throw new NegocioException("Solo se puede eliminar una proforma pendiente; la {$proforma->nro_proforma} está «{$proforma->estado}» y se conserva como historial.");
         }
         if ($proforma->campania()->exists()) {
             throw new NegocioException('No se puede eliminar la proforma porque tiene una campaña asociada.');
@@ -270,6 +353,9 @@ class ProformaService
             }
 
             $proforma->load(self::RELACIONES_DETALLE);
+            $monto = number_format($subtotal, 2, ',', '.');
+            $this->avisos->alPersonal('proformas.aprobar', "Cotización en línea {$proforma->nro_proforma}",
+                "El visitante {$visitante->nombre} cotizó por Bs {$monto} desde la portada. Revise la proforma y apruébela o recházela.");
             if ($quiereCuenta) {
                 $proforma->setAttribute('solicitud_cuenta', $solicitudes->registrar($visitante, $d['password']));
             }
@@ -334,8 +420,8 @@ class ProformaService
 
             if ($idTarifa) {
                 $tarifa = Tarifa::with('servicio')->find($idTarifa);
-                if (! $tarifa || ! $tarifa->activo) {
-                    throw new NegocioException("La tarifa #{$idTarifa} no existe o está inactiva.");
+                if (! $tarifa || ! $tarifa->activo || ! $tarifa->servicio?->activo) {
+                    throw new NegocioException("La tarifa #{$idTarifa} no existe o está inactiva (o su servicio fue dado de baja).");
                 }
                 if (($tarifa->vigente_desde && $tarifa->vigente_desde->toDateString() > $hoy)
                     || ($tarifa->vigente_hasta && $tarifa->vigente_hasta->toDateString() < $hoy)) {
@@ -388,10 +474,14 @@ class ProformaService
 
     private function marcarVencidas(): void
     {
-        Proforma::where('estado', 'pendiente')
+        $vencidas = Proforma::where('estado', 'pendiente')
             ->whereNotNull('fecha_validez')
             ->where('fecha_validez', '<', now()->toDateString())
-            ->update(['estado' => 'vencida']);
+            ->pluck('id_proforma')->all();
+        if ($vencidas) {
+            Proforma::whereIn('id_proforma', $vencidas)->update(['estado' => 'vencida']);
+            $this->liberarContratacion($vencidas);
+        }
     }
 
     private function verificarVencimiento(Proforma $proforma): void
@@ -400,6 +490,7 @@ class ProformaService
             && $proforma->fecha_validez
             && $proforma->fecha_validez->toDateString() < now()->toDateString()) {
             $proforma->update(['estado' => 'vencida']);
+            $this->liberarContratacion([$proforma->id_proforma]);
         }
     }
 }

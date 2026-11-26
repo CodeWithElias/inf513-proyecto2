@@ -41,7 +41,7 @@ function Indicador({ icono: I, titulo, valor, tono }) {
 export default function Bitacora() {
     const [resumen, setResumen] = useState(null);
     const [errorResumen, setErrorResumen] = useState(null);
-    const l = useListado('/bitacora', { evento: '', ip: '', desde: '', hasta: '' });
+    const l = useListado('/bitacora', { evento: '', ip: '', desde: '', hasta: '', cambios: '' });
 
     useEffect(() => {
         api.get('/bitacora/resumen', { params: { dias: 14 } })
@@ -111,8 +111,12 @@ export default function Bitacora() {
             </section>
 
             <h2 className="font-semibold mb-3">Registro de eventos</h2>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5 mb-4">
-                <input className="input" placeholder="Correo o recurso…" value={l.filtros.q} onChange={(e) => l.setFiltro('q', e.target.value)} aria-label="Buscar por correo o recurso" />
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6 mb-4">
+                <input className="input" placeholder="Correo, recurso o detalle (ej. PRO-2026)…" value={l.filtros.q} onChange={(e) => l.setFiltro('q', e.target.value)} aria-label="Buscar por correo, recurso o detalle" />
+                <select className="input" value={l.filtros.cambios} onChange={(e) => l.setFiltro('cambios', e.target.value)} aria-label="Tipo de petición">
+                    <option value="">Consultas y cambios</option>
+                    <option value="1">Solo cambios (altas, aprobaciones, bajas)</option>
+                </select>
                 <select className="input" value={l.filtros.evento} onChange={(e) => l.setFiltro('evento', e.target.value)} aria-label="Evento">
                     <option value="">Todos los eventos</option>
                     {Object.entries(EVENTOS).map(([k, [n]]) => <option key={k} value={k}>{n}</option>)}

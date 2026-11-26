@@ -12,7 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ProgramacionPauta extends Model
 {
     public const ESTADO_PROGRAMADA = 'programada';
-    public const ESTADO_EMITIDA = 'emitida';
+    /** Mismo valor que NPauta.PUBLICADA del Proyecto 1 (la BD es compartida). */
+    public const ESTADO_EMITIDA = 'publicada';
     public const ESTADO_CANCELADA = 'cancelada';
 
     public const ESTADOS = [

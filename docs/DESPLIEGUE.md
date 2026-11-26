@@ -42,6 +42,7 @@ tecnoweb → Run workflow*.
    | `DB_DATABASE` / `DB_USERNAME` | `db_grupo13sa` / `grupo13sa` |
    | `DB_PASSWORD` | contraseña de la BD |
    | `APP_KEY_PRODUCCION` | la salida de `php artisan key:generate --show` (generarla una vez y no cambiarla) |
+   | `STRIPE_KEY` / `STRIPE_SECRET` | claves de **prueba** de Stripe (`pk_test_…` / `sk_test_…`), en dashboard.stripe.com → Desarrolladores → Claves de API |
 
 2. Hacer el primer despliegue (push o merge a `main`). Tarda más la primera vez porque sube `vendor/` (~6 500 archivos).
 3. En FileZilla, dar permisos `777` recursivos a `laravel/storage` y `laravel/bootstrap/cache` (la acción no puede
@@ -118,8 +119,10 @@ aplica desde una PC con `php artisan migrate`, porque la BD es la misma.
 apuntando a `db_grupo13sa`:
 
 ```bash
-php artisan migrate                                   # 04 monitoreo manual, 05 solicitudes de cuenta, 06 notificaciones en el encabezado
+php artisan migrate                                   # 04 a 08 (monitoreo, solicitudes, campana, estado «publicada», contratación)
 php artisan db:seed --class=MaterialesDemoSeeder      # enlaza el material de ejemplo con sus archivos
+php artisan db:seed --class=AgendaDemoSeeder          # agenda de 60 días para poder contratar
+php artisan flujo:verificar                           # revisa la coherencia de los datos (solo lectura)
 ```
 
 ## Archivos del material publicitario
@@ -143,6 +146,8 @@ php artisan db:seed --class=MaterialesDemoSeeder      # enlaza el material de ej
 | La portada carga sin estilos | Falta `build/` o `APP_URL` mal | Subir `build/`; revisar `APP_URL` en `laravel/entorno.php` |
 | `/proyecto2/usuarios` o `/api/v1/...` da 404 de Apache | `.htaccess` no subido o `RewriteBase` distinto | Subir `.htaccess`; el diagnóstico muestra el `SCRIPT_NAME` real |
 | Error 500 | Permisos de escritura o extensión faltante | Ver el diagnóstico |
+| Al pagar: *“No se pudo conectar con Stripe”* | El servidor no tiene salida a internet hacia `api.stripe.com` | Ver la fila «Pagos» del diagnóstico y pedir al administrador que permita HTTPS saliente |
+| Al pagar: *“Los pagos en línea aún no están configurados”* | Faltan `STRIPE_KEY` / `STRIPE_SECRET` | Agregar los Secrets y volver a desplegar (o regenerar el paquete con las claves en el `.env`) |
 | Al subir material: *“No se puede guardar el archivo en el servidor”* | `laravel/storage` sin permisos de escritura | Permisos `777` recursivos a `laravel/storage` |
 | Al subir material: *“El archivo es demasiado grande”* con archivos chicos | PHP no leyó el `.user.ini` | Verificar que `.user.ini` esté en `/proyecto2`; PHP-FPM lo relee cada 5 minutos |
 | El diagnóstico dice "laravel/composer.json NO bloqueado" | Apache ignora los `.htaccess` | **Borrar la carpeta `laravel/` de inmediato** y pedir al administrador que habilite `AllowOverride` |

@@ -6,6 +6,7 @@
 #   FTP_SERVIDOR, FTP_USUARIO, FTP_CONTRASENA
 #   DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 #   APP_KEY_PRODUCCION   (generar una vez con: php artisan key:generate --show)
+#   STRIPE_KEY, STRIPE_SECRET   (claves de PRUEBA de Stripe: pk_test_… y sk_test_…)
 
 name: Desplegar en tecnoweb
 
@@ -55,6 +56,8 @@ jobs:
           DB_USERNAME: ${{ secrets.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           APP_KEY_PRODUCCION: ${{ secrets.APP_KEY_PRODUCCION }}
+          STRIPE_KEY: ${{ secrets.STRIPE_KEY }}
+          STRIPE_SECRET: ${{ secrets.STRIPE_SECRET }}
 
       - name: Subir por FTP a /proyecto2 (solo los archivos que cambiaron)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

@@ -12,7 +12,7 @@ class TransaccionPago extends Model
     public $timestamps = false;
     protected $fillable = [
         'id_usuario', 'id_metodo', 'id_proforma', 'id_cuota',
-        'monto', 'estado', 'codigo_autorizacion', 'mensaje', 'fecha',
+        'monto', 'estado', 'codigo_autorizacion', 'mensaje', 'stripe_payment_intent', 'fecha',
     ];
     protected $casts = [
         'monto' => 'float',

@@ -57,6 +57,11 @@ const local = {};
 // En el servidor, PostgreSQL está en la misma máquina: db.tecnoweb.org.bo (IP pública) rechaza la
 // conexión desde adentro, así que el host de producción es 127.0.0.1 (nunca el del .env local).
 envLocal.DB_HOST = '127.0.0.1';
+// Stripe (modo de prueba): opcional para armar el paquete; sin claves la app avisa que los pagos no están configurados
+for (const k of ['STRIPE_KEY', 'STRIPE_SECRET', 'STRIPE_MONEDA']) {
+    local[k] = process.env[k] || envLocal[k] || '';
+}
+if (!local.STRIPE_SECRET) console.warn('⚠ Sin STRIPE_KEY / STRIPE_SECRET: el paquete se arma, pero no se podrá pagar hasta configurarlas.');
 for (const k of ['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD']) {
     local[k] = process.env[k] || envLocal[k];
     if (!local[k]) {
@@ -161,6 +166,9 @@ const variables = {
     DB_USERNAME: local.DB_USERNAME,
     DB_PASSWORD: local.DB_PASSWORD,
     DB_PERSISTENT: 'false',
+    STRIPE_KEY: local.STRIPE_KEY,
+    STRIPE_SECRET: local.STRIPE_SECRET,
+    STRIPE_MONEDA: local.STRIPE_MONEDA || 'bob',
     BCRYPT_ROUNDS: '12',
     SANCTUM_EXPIRATION: '480',
     SESSION_DRIVER: 'array',

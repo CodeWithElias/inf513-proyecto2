@@ -39,7 +39,10 @@ class BitacoraService
             ->when($f['ip'] ?? null, fn ($q, $v) => $q->where('ip', 'ilike', "%{$v}%"))
             ->when($f['q'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w
                 ->where('email', 'ilike', "%{$v}%")
-                ->orWhere('recurso', 'ilike', "%{$v}%")))
+                ->orWhere('recurso', 'ilike', "%{$v}%")
+                ->orWhere('detalle', 'ilike', "%{$v}%")))
+            // Solo cambios: altas, modificaciones, aprobaciones, bajas (no consultas)
+            ->when(($f['cambios'] ?? null) === '1', fn ($q) => $q->whereIn('metodo', ['POST', 'PUT', 'PATCH', 'DELETE'])->where('evento', '<>', 'login_ok'))
             ->when($f['desde'] ?? null, fn ($q, $v) => $q->whereDate('fecha', '>=', $v))
             ->when($f['hasta'] ?? null, fn ($q, $v) => $q->whereDate('fecha', '<=', $v))
             ->orderByDesc('id_bitacora')

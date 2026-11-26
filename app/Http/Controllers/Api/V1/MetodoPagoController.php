@@ -21,9 +21,15 @@ class MetodoPagoController extends Controller
         return $this->paginado($this->metodos->listar($request->query(), $this->porPagina($request), $request->user()));
     }
 
+    /** POST /metodos-pago/preparar → client_secret de un SetupIntent de Stripe (paso 1 del registro). */
+    public function preparar(Request $request): JsonResponse
+    {
+        return $this->ok($this->metodos->prepararRegistro($request->user()));
+    }
+
     public function store(MetodoPagoRequest $request): JsonResponse
     {
-        return $this->creado($this->metodos->crear($request->validated(), $request->user()), 'Método de pago registrado correctamente.');
+        return $this->creado($this->metodos->crear($request->validated(), $request->user()), 'Tarjeta registrada correctamente.');
     }
 
     public function update(MetodoPagoRequest $request, MetodoPago $metodo): JsonResponse

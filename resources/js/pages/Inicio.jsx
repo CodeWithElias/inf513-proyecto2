@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { fechaHora } from '../lib/formato';
 import Icono from '../components/Icono';
+import FlujoInicio from '../components/FlujoInicio';
 
 /** Página de inicio: bienvenida y accesos rápidos según el menú del rol. */
 export default function Inicio() {
@@ -31,6 +32,8 @@ export default function Inicio() {
                     <Link to="/perfil" className="btn btn-primario shrink-0">Registrar mi empresa</Link>
                 </section>
             )}
+
+            <FlujoInicio />
 
             <h2 className="text-lg font-semibold mb-3">Accesos rápidos</h2>
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

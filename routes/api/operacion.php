@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\EspacioController;
 use App\Http\Controllers\Api\V1\EstadisticaController;
+use App\Http\Controllers\Api\V1\FlujoController;
 use App\Http\Controllers\Api\V1\MaterialController;
 use App\Http\Controllers\Api\V1\MetricaController;
 use App\Http\Controllers\Api\V1\NotificacionController;
@@ -17,6 +18,9 @@ Route::get('materiales/{material}/archivo', [MaterialController::class, 'archivo
     ->middleware('signed')->name('materiales.archivo');
 
 Route::middleware('auth:sanctum')->group(function () {
+    // Avance del flujo de contratación (cliente) y pendientes del personal (página de Inicio)
+    Route::get('flujo', [FlujoController::class, 'resumen']);
+
     // CU4: Material publicitario y revisiones
     Route::get('materiales', [MaterialController::class, 'index'])->middleware('permiso:materiales.ver');
     Route::get('materiales/{material}', [MaterialController::class, 'show'])->middleware('permiso:materiales.ver');
@@ -53,5 +57,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('metricas/resumen', [MetricaController::class, 'resumen'])->middleware('permiso:metricas.ver');
 
     // C4: Dashboard de estadísticas de negocio
-    Route::get('estadisticas/negocio', [EstadisticaController::class, 'negocio'])->middleware('permiso:dashboard.ver');
+    Route::get('estadisticas/negocio', [EstadisticaController::class, 'negocio'])->middleware('permiso:dashboard.ver|reportes.ver');
 });

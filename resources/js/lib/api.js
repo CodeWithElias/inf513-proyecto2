@@ -43,6 +43,8 @@ api.interceptors.response.use(
 export function mensajeError(error) {
     if (error?.response?.data?.message) return error.response.data.message;
     if (error?.request && !error?.response) return 'No se pudo conectar con el servidor. Revise su conexión a internet.';
+    // Errores que no vienen de la API (ej. Stripe en el navegador) ya traen su mensaje en español
+    if (error instanceof Error && !error.isAxiosError && error.message) return error.message;
     return 'Ocurrió un error inesperado. Inténtelo nuevamente.';
 }
 

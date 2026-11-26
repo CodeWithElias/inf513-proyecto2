@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAvisos } from '../../context/AvisosContext';
 import { limpiarOpciones, useListado, useOpciones } from '../../hooks/useListado';
 import { api, erroresCampos, mensajeError } from '../../lib/api';
+import { pagarConVerificacion } from '../../lib/stripe';
 import { fechaHora, moneda } from '../../lib/formato';
 
 export default function Pagos() {
@@ -45,10 +46,12 @@ export default function Pagos() {
 
         setEnviando(true);
         try {
-            const { data } = await api.post('/pagos', {
+            // Si el banco pide verificación (3D Secure) se muestra la ventana de Stripe y se reenvía
+            const { data } = await pagarConVerificacion((extra) => api.post('/pagos', {
                 id_proforma: Number(form.id_proforma),
                 id_metodo: Number(form.id_metodo),
-            });
+                ...extra,
+            }));
             const tx = data.data;
             if (tx.estado === 'aprobada') {
                 exito(data.message);
@@ -104,7 +107,7 @@ export default function Pagos() {
 
     return (
         <div>
-            <EncabezadoPagina titulo="Pagos y transacciones" descripcion="Historial de pagos procesados por la pasarela simulada y pago único de proformas aprobadas.">
+            <EncabezadoPagina titulo="Pagos y transacciones" descripcion="Historial de pagos procesados por Stripe (modo de prueba) y pago al contado de proformas aprobadas.">
                 {puede('pagos.crear') && (
                     <button className="btn btn-primario" onClick={abrirModal}>
                         <CreditCard size={16} /> Pagar proforma

@@ -8,9 +8,16 @@ use App\Models\Usuario;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
-/** Pagos - Gestión de métodos de pago con validación Luhn (nunca guarda PAN ni CVV). */
+/**
+ * Pagos - Métodos de pago: tarjetas registradas con Stripe (Stripe Elements + SetupIntent).
+ * Nunca se guarda el número completo ni el CVV; solo el id de Stripe, la marca, los últimos 4 y el vencimiento.
+ */
 class MetodoPagoService
 {
+    public function __construct(private readonly StripeService $stripe)
+    {
+    }
+
     public function listar(array $f, int $porPagina, Usuario $actor): LengthAwarePaginator
     {
         return MetodoPago::query()
@@ -27,42 +34,27 @@ class MetodoPagoService
             ->paginate($porPagina);
     }
 
+    /** Paso 1: el navegador pide un SetupIntent para registrar la tarjeta con Stripe Elements. */
+    public function prepararRegistro(Usuario $actor): array
+    {
+        return $this->stripe->prepararRegistro($actor);
+    }
+
+    /**
+     * Paso 2: la tarjeta ya quedó guardada en Stripe; se registra aquí con los datos que Stripe informa
+     * (marca, últimos 4 dígitos y vencimiento). El número completo y el CVV nunca pasan por el servidor.
+     */
     public function crear(array $d, Usuario $actor): MetodoPago
     {
-        $tipo = $d['tipo'];
-        $ultimos4 = null;
-        $marca = $d['marca'] ?? null;
-        $mesExp = null;
-        $anioExp = null;
-
-        if ($tipo === 'tarjeta') {
-            $soloDigitos = preg_replace('/\D+/', '', (string) ($d['numero'] ?? ''));
-            if (strlen($soloDigitos) < 13 || strlen($soloDigitos) > 19) {
-                throw new NegocioException('El número de tarjeta debe tener entre 13 y 19 dígitos.');
-            }
-            if (! self::validarLuhn($soloDigitos)) {
-                throw new NegocioException('El número de tarjeta no es válido (falló la verificación Luhn).');
-            }
-            $cvv = (string) ($d['cvv'] ?? '');
-            if (! preg_match('/^\d{3,4}$/', $cvv)) {
-                throw new NegocioException('El código de seguridad (CVV) debe tener 3 o 4 dígitos.');
-            }
-            $mesExp = (int) ($d['mes_exp'] ?? 0);
-            $anioExp = (int) ($d['anio_exp'] ?? 0);
-            $this->validarExpiracion($mesExp, $anioExp);
-
-            $ultimos4 = substr($soloDigitos, -4);
-            $marca = $marca ?: self::detectarMarca($soloDigitos);
-        } elseif ($tipo === 'qr') {
-            $marca = $marca ?: 'QR Simple';
-        } elseif ($tipo === 'billetera') {
-            $marca = $marca ?: 'Billetera digital';
+        $pm = (string) $d['payment_method'];
+        if (MetodoPago::where('stripe_payment_method', $pm)->exists()) {
+            throw new NegocioException('Esa tarjeta ya está registrada.');
         }
-
+        $tarjeta = $this->stripe->datosTarjeta($actor, $pm);
         $predeterminado = (bool) ($d['predeterminado'] ?? false);
 
-        return DB::transaction(function () use ($actor, $tipo, $marca, $ultimos4, $d, $mesExp, $anioExp, $predeterminado) {
-            $tieneActivos = MetodoPago::where('id_usuario', $actor->id_usuario)->where('activo', true)->exists();
+        return DB::transaction(function () use ($actor, $d, $pm, $tarjeta, $predeterminado) {
+            $tieneActivos = MetodoPago::where('id_usuario', $actor->id_usuario)->where('activo', true)->whereNotNull('stripe_payment_method')->exists();
             if (! $tieneActivos) {
                 $predeterminado = true;
             }
@@ -72,13 +64,14 @@ class MetodoPagoService
 
             return MetodoPago::create([
                 'id_usuario' => $actor->id_usuario,
-                'tipo' => $tipo,
-                'marca' => $marca,
-                'ultimos4' => $ultimos4,
+                'tipo' => 'tarjeta',
+                'marca' => $tarjeta['marca'],
+                'ultimos4' => $tarjeta['ultimos4'],
                 'titular' => $d['titular'],
-                'mes_exp' => $mesExp,
-                'anio_exp' => $anioExp,
-                'token_simulado' => 'tok_'.bin2hex(random_bytes(16)),
+                'mes_exp' => $tarjeta['mes_exp'],
+                'anio_exp' => $tarjeta['anio_exp'],
+                'token_simulado' => $pm, // columna obligatoria del Proyecto 2: guarda el mismo id de Stripe
+                'stripe_payment_method' => $pm,
                 'predeterminado' => $predeterminado,
                 'activo' => true,
             ])->load('usuario:id_usuario,nombre_completo,email');
@@ -88,12 +81,6 @@ class MetodoPagoService
     public function actualizar(MetodoPago $metodo, array $d, Usuario $actor): MetodoPago
     {
         $this->exigirAcceso($metodo, $actor);
-
-        if ($metodo->tipo === 'tarjeta') {
-            $mes = (int) ($d['mes_exp'] ?? $metodo->mes_exp);
-            $anio = (int) ($d['anio_exp'] ?? $metodo->anio_exp);
-            $this->validarExpiracion($mes, $anio);
-        }
 
         $predeterminado = array_key_exists('predeterminado', $d)
             ? (bool) $d['predeterminado']
@@ -106,11 +93,9 @@ class MetodoPagoService
                     ->update(['predeterminado' => false]);
             }
 
+            // Marca, últimos 4 dígitos y vencimiento los informa Stripe: aquí solo se edita el titular
             $metodo->update([
                 'titular' => $d['titular'] ?? $metodo->titular,
-                'marca' => $d['marca'] ?? $metodo->marca,
-                'mes_exp' => $metodo->tipo === 'tarjeta' ? (int) ($d['mes_exp'] ?? $metodo->mes_exp) : null,
-                'anio_exp' => $metodo->tipo === 'tarjeta' ? (int) ($d['anio_exp'] ?? $metodo->anio_exp) : null,
                 'predeterminado' => $predeterminado,
             ]);
 
@@ -128,9 +113,14 @@ class MetodoPagoService
                 : 'El método de pago ya está dado de baja.');
         }
 
+        if ($activo) {
+            // Una tarjeta dada de baja se desvinculó de Stripe; para usarla hay que registrarla otra vez
+            throw new NegocioException('Una tarjeta dada de baja no se puede reactivar: regístrela de nuevo en «Agregar tarjeta».');
+        }
+        $this->stripe->quitarTarjeta($metodo);
         $metodo->update([
-            'activo' => $activo,
-            'predeterminado' => $activo ? $metodo->predeterminado : false,
+            'activo' => false,
+            'predeterminado' => false,
         ]);
 
         return $metodo->load('usuario:id_usuario,nombre_completo,email');
@@ -142,53 +132,4 @@ class MetodoPagoService
             throw new NegocioException('No tiene acceso a este método de pago.', 403);
         }
     }
-
-    /** Algoritmo de Luhn para validar números de tarjeta de crédito/débito. */
-    public static function validarLuhn(string $numero): bool
-    {
-        $suma = 0;
-        $duplicar = false;
-
-        for ($i = strlen($numero) - 1; $i >= 0; $i--) {
-            $digito = (int) $numero[$i];
-            if ($duplicar) {
-                $digito *= 2;
-                if ($digito > 9) {
-                    $digito -= 9;
-                }
-            }
-            $suma += $digito;
-            $duplicar = ! $duplicar;
-        }
-
-        return ($suma % 10) === 0;
-    }
-
-    private static function detectarMarca(string $numero): string
-    {
-        if (str_starts_with($numero, '4')) {
-            return 'Visa';
-        }
-        if (preg_match('/^(5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d{2}|27[01]\d|2720)/', $numero)) {
-            return 'Mastercard';
-        }
-        if (preg_match('/^3[47]/', $numero)) {
-            return 'American Express';
-        }
-
-        return 'Tarjeta';
-    }
-
-    private function validarExpiracion(int $mes, int $anio): void
-    {
-        if ($mes < 1 || $mes > 12) {
-            throw new NegocioException('El mes de expiración debe estar entre 1 y 12.');
-        }
-        $anioActual = (int) now()->format('Y');
-        $mesActual = (int) now()->format('n');
-        if ($anio < $anioActual || ($anio === $anioActual && $mes < $mesActual)) {
-            throw new NegocioException('La tarjeta ingresada se encuentra vencida.');
-        }
-    }
 }
-

@@ -7,6 +7,7 @@ use App\Models\ServicioPublicitario;
 use App\Models\Tarifa;
 use App\Models\UnidadUniversitaria;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /** CU3 - Tarifas con vigencia (portado de NTarifa). */
 class TarifaService
@@ -56,6 +57,7 @@ class TarifaService
     {
         $this->validarReglas($d);
 
+        return DB::transaction(function () use ($tarifa, $d) {
         $tarifa->update([
             'id_servicio' => $d['id_servicio'],
             'id_unidad' => $d['id_unidad'] ?? null,
@@ -65,8 +67,25 @@ class TarifaService
             'vigente_hasta' => $d['vigente_hasta'] ?? null,
             'duracion_seg' => $d['duracion_seg'] ?? null,
         ]);
+        $this->recalcularPaquetes($tarifa->id_tarifa);
 
         return $tarifa->load(self::RELACIONES);
+        });
+    }
+
+    /**
+     * Recalcula el precio de los paquetes que incluyen la tarifa (las proformas ya emitidas no cambian:
+     * guardan su propio precio unitario).
+     */
+    private function recalcularPaquetes(int $idTarifa): void
+    {
+        $paquetes = DB::table('paquete_item')->where('id_tarifa', $idTarifa)->pluck('id_paquete')->unique();
+        foreach ($paquetes as $idPaquete) {
+            $suma = (float) DB::table('paquete_item as pi')->join('tarifa as t', 't.id_tarifa', '=', 'pi.id_tarifa')
+                ->where('pi.id_paquete', $idPaquete)->sum(DB::raw('t.monto * pi.cantidad'));
+            $descuento = (float) DB::table('paquete')->where('id_paquete', $idPaquete)->value('descuento');
+            DB::table('paquete')->where('id_paquete', $idPaquete)->update(['precio_total' => round($suma * (1 - $descuento / 100), 2)]);
+        }
     }
 
     public function cambiarEstado(Tarifa $tarifa, bool $activo): Tarifa
@@ -75,6 +94,16 @@ class TarifaService
             throw new NegocioException($activo
                 ? 'La tarifa seleccionada ya está activa.'
                 : 'La tarifa seleccionada ya está dada de baja.');
+        }
+        if (! $activo) {
+            $paquetes = DB::table('paquete as p')->join('paquete_item as pi', 'pi.id_paquete', '=', 'p.id_paquete')
+                ->where('pi.id_tarifa', $tarifa->id_tarifa)->where('p.activo', true)
+                ->pluck('p.nombre')->all();
+            if ($paquetes) {
+                throw new NegocioException('No se puede deshabilitar la tarifa: forma parte de los paquetes activos '.implode(', ', $paquetes).'. Quítela de esos paquetes o délos de baja primero.');
+            }
+        } elseif (! $tarifa->servicio?->activo) {
+            throw new NegocioException("No se puede reactivar la tarifa: su servicio «{$tarifa->servicio?->nombre}» está dado de baja. Reactívelo primero.");
         }
         $tarifa->update(['activo' => $activo]);
 

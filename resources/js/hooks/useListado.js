@@ -15,7 +15,11 @@ export function useListado(endpoint, filtrosIniciales = {}) {
     // ?q= en la URL (lo usa la búsqueda global del encabezado) llega como texto de búsqueda inicial
     const [params] = useSearchParams();
     const qUrl = params.get('q') ?? '';
-    const [filtros, setFiltros] = useState({ ...filtrosIniciales, q: qUrl || filtrosIniciales.q || '' });
+    // Los demás filtros también pueden venir en la URL (ej. ?estado=pendiente desde los pendientes de Inicio)
+    const [filtros, setFiltros] = useState(() => ({
+        ...Object.fromEntries(Object.entries(filtrosIniciales).map(([k, v]) => [k, params.get(k) ?? v])),
+        q: qUrl || filtrosIniciales.q || '',
+    }));
     const [pagina, setPagina] = useState(1);
     const [version, setVersion] = useState(0);
     const temporizador = useRef(null);

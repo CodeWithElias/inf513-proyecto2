@@ -27,6 +27,7 @@ import Servicios from './pages/comercial/Servicios';
 import Tarifas from './pages/comercial/Tarifas';
 import Paquetes from './pages/comercial/Paquetes';
 import Proformas from './pages/comercial/Proformas';
+import Contratar from './pages/comercial/Contratar';
 import Campanias from './pages/comercial/Campanias';
 import MetodosPago from './pages/pagos/MetodosPago';
 import Pagos from './pages/pagos/Pagos';
@@ -65,6 +66,7 @@ export const RUTAS = [
     { ruta: '/tarifas', componente: Tarifas, privilegio: 'tarifas.ver' },
     { ruta: '/paquetes', componente: Paquetes, privilegio: 'paquetes.ver' },
     { ruta: '/proformas', componente: Proformas, privilegio: 'proformas.ver' },
+    { ruta: '/contratar/:id', componente: Contratar, privilegio: 'proformas.aprobar' },
     { ruta: '/campanias', componente: Campanias, privilegio: 'campanias.ver' },
     { ruta: '/metodos-pago', componente: MetodosPago, privilegio: 'metodos_pago.ver' },
     { ruta: '/pagos', componente: Pagos, privilegio: 'pagos.ver' },

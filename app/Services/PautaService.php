@@ -6,7 +6,6 @@ use App\Exceptions\NegocioException;
 use App\Models\DetalleProforma;
 use App\Models\EspacioPublicitario;
 use App\Models\MaterialPublicitario;
-use App\Models\Notificacion;
 use App\Models\ProgramacionPauta;
 use App\Models\Usuario;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -18,6 +17,10 @@ use Illuminate\Support\Facades\DB;
  */
 class PautaService
 {
+    public function __construct(private readonly AvisoService $avisos)
+    {
+    }
+
     /** Listado paginado de pautas con filtros y aislamiento por empresa para rol Cliente. */
     public function listar(array $filtros, int $porPagina = 15, ?Usuario $actor = null): LengthAwarePaginator
     {
@@ -74,15 +77,29 @@ class PautaService
             throw new NegocioException("La campaña «{$material->campania->nombre}» no está activa.");
         }
 
+        // 1b. Proforma pagada (al contado, plan completado o cuotas al día)
+        $pago = $material->campania->proforma->situacionPago();
+        if (! $pago['habilita_pautas']) {
+            throw new NegocioException("Aún no se pueden programar pautas de la campaña «{$material->campania->nombre}»: la proforma {$material->campania->proforma->nro_proforma} no está pagada. {$pago['detalle']}");
+        }
+
         // 2. Espacio disponible
         $espacio = EspacioPublicitario::with('canal')->findOrFail($datos['id_espacio']);
         if (! $espacio->estaDisponible()) {
             throw new NegocioException("El espacio {$espacio->id_espacio} se encuentra {$espacio->estado}; solo se pueden ocupar espacios disponibles.");
         }
+        if (DB::table('contratacion_espacio')->where('id_espacio', $espacio->id_espacio)->whereNull('id_programacion')
+            ->where('fecha_reserva', '>=', now()->subHours(ContratacionService::HORAS_RESERVA))->exists()) {
+            throw new NegocioException("El espacio {$espacio->id_espacio} está apartado por una contratación en curso; elija otro.");
+        }
+        if (! $espacio->canal?->activo) {
+            throw new NegocioException("El canal «{$espacio->canal?->nombre}» está dado de baja; elija un espacio de un canal activo.");
+        }
 
-        if ($espacio->fecha < now()->toDateString()) {
+        if ($espacio->fecha->toDateString() < now()->toDateString()) {
             throw new NegocioException('No se puede programar en un espacio con fecha pasada.');
         }
+        $this->validarDentroDeCampania($espacio, $material->campania);
 
         // 3. Detalle contratado
         $detalle = DetalleProforma::findOrFail($datos['id_detalle']);
@@ -104,23 +121,9 @@ class PautaService
                 'fecha_programacion' => now(),
             ]);
 
-            // RF11: Notificación automática a los encargados / cliente
-            $canalNombre = $espacio->canal->nombre;
-            $titulo = "Nueva pauta programada: {$material->nombre_archivo}";
-            $mensaje = "Se ha programado la emisión de la pieza publicitaria «{$material->nombre_archivo}» en el canal {$canalNombre} para el día {$espacio->fecha} en el horario {$espacio->hora_inicio} - {$espacio->hora_fin}.";
-
-            // Notificar al usuario que subió el material (si existe)
-            if ($material->id_usuario) {
-                Notificacion::create([
-                    'id_usuario' => $material->id_usuario,
-                    'id_programacion' => $pauta->id_programacion,
-                    'medio' => Notificacion::MEDIO_SISTEMA,
-                    'titulo' => $titulo,
-                    'mensaje' => $mensaje,
-                    'leida' => false,
-                    'fecha_envio' => now(),
-                ]);
-            }
+            // RF11: Notificación automática al cliente (representantes de la empresa y quien subió el material)
+            $this->avisarCliente($pauta, "Nueva pauta programada: {$material->nombre_archivo}",
+                "Se programó la emisión de «{$material->nombre_archivo}» en {$this->cuando($espacio)}.", $actor);
 
             return $pauta;
         });
@@ -137,12 +140,17 @@ class PautaService
             return $pauta;
         }
 
-        $nuevoEspacio = EspacioPublicitario::findOrFail($nuevoIdEspacio);
+        $nuevoEspacio = EspacioPublicitario::with('canal')->findOrFail($nuevoIdEspacio);
         if (! $nuevoEspacio->estaDisponible()) {
             throw new NegocioException("El espacio seleccionado {$nuevoEspacio->id_espacio} se encuentra {$nuevoEspacio->estado}.");
         }
+        if ($nuevoEspacio->fecha->toDateString() < now()->toDateString()) {
+            throw new NegocioException('No se puede reprogramar a un espacio con fecha pasada.');
+        }
+        $pauta->loadMissing('material.campania.proforma');
+        $this->validarDentroDeCampania($nuevoEspacio, $pauta->material->campania);
 
-        return DB::transaction(function () use ($pauta, $nuevoEspacio) {
+        return DB::transaction(function () use ($pauta, $nuevoEspacio, $actor) {
             // Liberar espacio anterior
             $pauta->espacio()->update(['estado' => EspacioPublicitario::ESTADO_DISPONIBLE]);
 
@@ -150,6 +158,8 @@ class PautaService
             $nuevoEspacio->update(['estado' => EspacioPublicitario::ESTADO_OCUPADO]);
 
             $pauta->update(['id_espacio' => $nuevoEspacio->id_espacio]);
+            $this->avisarCliente($pauta, "Pauta reprogramada: {$pauta->material->nombre_archivo}",
+                "La emisión de «{$pauta->material->nombre_archivo}» se cambió a {$this->cuando($nuevoEspacio)}.", $actor);
 
             return $pauta;
         });
@@ -162,10 +172,25 @@ class PautaService
             throw new NegocioException("La pauta {$pauta->id_programacion} ya se encuentra «{$pauta->estado}».");
         }
 
+        $pauta->loadMissing(['espacio.canal', 'material.campania.proforma']);
+        if ($pauta->material->estado !== MaterialPublicitario::ESTADO_APROBADO) {
+            throw new NegocioException("El material «{$pauta->material->nombre_archivo}» está «{$pauta->material->estado}»; solo se emite material aprobado por Canal 11.");
+        }
+        if ($pauta->espacio->fecha->toDateString() > now()->toDateString()) {
+            throw new NegocioException('La pauta está programada para el '.$pauta->espacio->fecha->format('d/m/Y').'; se marca como emitida recién ese día.');
+        }
+
         $pauta->update([
             'estado' => ProgramacionPauta::ESTADO_EMITIDA,
             'url_publicacion' => $urlPublicacion ?: null,
         ]);
+
+        $enlace = $urlPublicacion ? " Puede verla en: {$urlPublicacion}" : '';
+        $this->avisarCliente($pauta, "Su anuncio se emitió: {$pauta->material->nombre_archivo}",
+            "«{$pauta->material->nombre_archivo}» salió al aire en {$this->cuando($pauta->espacio)}.".$enlace.' Las métricas de alcance aparecerán en «Métricas» cuando se registren.', $actor);
+        $this->avisos->alPersonal('metricas.crear', "Registrar métricas de la pauta #{$pauta->id_programacion}",
+            "La pauta «{$pauta->material->nombre_archivo}» ({$pauta->espacio->canal->nombre}) ya se emitió. Registre su alcance, impresiones e interacciones en «Métricas».",
+            $actor, $pauta->id_programacion);
 
         return $pauta;
     }
@@ -177,14 +202,44 @@ class PautaService
             throw new NegocioException("La pauta {$pauta->id_programacion} está «{$pauta->estado}» y no se puede cancelar.");
         }
 
-        return DB::transaction(function () use ($pauta) {
+        return DB::transaction(function () use ($pauta, $actor) {
             // Liberar espacio
             $pauta->espacio()->update(['estado' => EspacioPublicitario::ESTADO_DISPONIBLE]);
 
             // Actualizar estado
             $pauta->update(['estado' => ProgramacionPauta::ESTADO_CANCELADA]);
 
+            $pauta->loadMissing(['espacio.canal', 'material.campania.proforma']);
+            $this->avisarCliente($pauta, "Pauta cancelada: {$pauta->material->nombre_archivo}",
+                "Se canceló la emisión de «{$pauta->material->nombre_archivo}» prevista para {$this->cuando($pauta->espacio)}. Canal 11 la reprogramará en otro espacio.", $actor);
+
             return $pauta;
         });
+    }
+
+    /** El espacio debe caer dentro de las fechas de la campaña (si las tiene). */
+    private function validarDentroDeCampania(EspacioPublicitario $espacio, \App\Models\Campania $campania): void
+    {
+        $dia = $espacio->fecha->toDateString();
+        if (($campania->fecha_inicio && $dia < $campania->fecha_inicio->toDateString())
+            || ($campania->fecha_fin && $dia > $campania->fecha_fin->toDateString())) {
+            $rango = ($campania->fecha_inicio?->format('d/m/Y') ?? '…').' al '.($campania->fecha_fin?->format('d/m/Y') ?? '…');
+            throw new NegocioException("El espacio es del {$espacio->fecha->format('d/m/Y')}, fuera de las fechas de la campaña «{$campania->nombre}» ({$rango}).");
+        }
+    }
+
+    private function cuando(EspacioPublicitario $e): string
+    {
+        $e->loadMissing('canal');
+
+        return ($e->canal?->nombre ?? 'el canal').' el '.$e->fecha->format('d/m/Y').' de '.substr((string) $e->hora_inicio, 0, 5).' a '.substr((string) $e->hora_fin, 0, 5);
+    }
+
+    /** Aviso al cliente: representantes de la empresa y quien subió el material. */
+    private function avisarCliente(ProgramacionPauta $pauta, string $titulo, string $mensaje, Usuario $actor): void
+    {
+        $pauta->loadMissing('material.campania.proforma');
+        $destinos = array_merge($this->avisos->cliente($pauta->material->campania->proforma), [(int) $pauta->material->id_usuario]);
+        $this->avisos->enviar($destinos, $titulo, $mensaje, $pauta->id_programacion, $actor);
     }
 }

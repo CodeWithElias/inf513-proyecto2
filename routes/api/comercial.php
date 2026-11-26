@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\BusquedaController;
 use App\Http\Controllers\Api\V1\CampaniaController;
+use App\Http\Controllers\Api\V1\ContratacionController;
 use App\Http\Controllers\Api\V1\EmpresaController;
 use App\Http\Controllers\Api\V1\MetodoPagoController;
 use App\Http\Controllers\Api\V1\PagoController;
@@ -65,6 +66,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('proformas/{proforma}/estado', [ProformaController::class, 'estado'])->middleware('permiso:proformas.aprobar');
     Route::delete('proformas/{proforma}', [ProformaController::class, 'destroy'])->middleware('permiso:proformas.eliminar');
 
+    // Contratación guiada: la única forma de aprobar una proforma (campaña → material → agenda → pago)
+    Route::middleware('permiso:proformas.aprobar')->prefix('contrataciones/{proforma}')->group(function () {
+        Route::get('/', [ContratacionController::class, 'show']);
+        Route::put('campania', [ContratacionController::class, 'campania']);
+        Route::post('lineas/{linea}/material', [ContratacionController::class, 'material'])->whereNumber('linea');
+        Route::get('lineas/{linea}/espacios', [ContratacionController::class, 'espacios'])->whereNumber('linea');
+        Route::put('lineas/{linea}/espacios', [ContratacionController::class, 'reservar'])->whereNumber('linea');
+        Route::post('confirmar', [ContratacionController::class, 'confirmar']);
+    });
+
     // B2 - Campañas
     Route::get('campanias', [CampaniaController::class, 'index'])->middleware('permiso:campanias.ver');
     Route::get('campanias/{campania}', [CampaniaController::class, 'show'])->middleware('permiso:campanias.ver');
@@ -73,6 +84,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // B5 - Métodos de pago
     Route::get('metodos-pago', [MetodoPagoController::class, 'index'])->middleware('permiso:metodos_pago.ver');
+    Route::post('metodos-pago/preparar', [MetodoPagoController::class, 'preparar'])->middleware('permiso:metodos_pago.crear');
     Route::post('metodos-pago', [MetodoPagoController::class, 'store'])->middleware('permiso:metodos_pago.crear');
     Route::put('metodos-pago/{metodo}', [MetodoPagoController::class, 'update'])->middleware('permiso:metodos_pago.editar');
     Route::patch('metodos-pago/{metodo}/estado', [MetodoPagoController::class, 'estado'])->middleware('permiso:metodos_pago.eliminar');
