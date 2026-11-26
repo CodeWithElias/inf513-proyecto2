@@ -56,5 +56,45 @@ class Proforma extends Model
     {
         return $this->hasMany(TransaccionPago::class, 'id_proforma', 'id_proforma');
     }
+
+    /** Situaciones de pago: con «pagada» o «al_dia» ya se pueden programar pautas. */
+    public const PAGO_PAGADA = 'pagada';      // pago al contado aprobado o plan completado
+
+    public const PAGO_AL_DIA = 'al_dia';      // plan activo con cuotas pagadas y ninguna vencida
+
+    public const PAGO_ATRASADO = 'atrasado';  // plan con alguna cuota vencida sin pagar
+
+    public const PAGO_PENDIENTE = 'sin_pago'; // aún no pagó nada
+
+    /**
+     * Situación de pago de la proforma (paso previo a programar pautas).
+     *
+     * @return array{estado: string, detalle: string, habilita_pautas: bool}
+     */
+    public function situacionPago(): array
+    {
+        $contado = $this->transacciones()->whereNull('id_cuota')->where('estado', 'aprobada')->exists();
+        $plan = $this->planesPago()->whereIn('estado', ['activo', 'completado'])->with('cuotas')->latest('id_plan')->first();
+
+        if ($contado || $plan?->estado === 'completado') {
+            return ['estado' => self::PAGO_PAGADA, 'detalle' => $contado ? 'Pagada al contado.' : 'Plan de cuotas completado.', 'habilita_pautas' => true];
+        }
+        if ($plan) {
+            $hoy = now()->toDateString();
+            $pagadas = $plan->cuotas->where('estado', 'pagada')->count();
+            $vencidas = $plan->cuotas->filter(fn ($c) => $c->estado !== 'pagada' && $c->fecha_vencimiento?->toDateString() < $hoy)->count();
+            $total = $plan->cuotas->count();
+            if ($vencidas > 0) {
+                return ['estado' => self::PAGO_ATRASADO, 'detalle' => "Plan de cuotas con {$vencidas} cuota(s) vencida(s) sin pagar ({$pagadas} de {$total} pagadas).", 'habilita_pautas' => false];
+            }
+            if ($pagadas > 0) {
+                return ['estado' => self::PAGO_AL_DIA, 'detalle' => "Plan de cuotas al día ({$pagadas} de {$total} pagadas).", 'habilita_pautas' => true];
+            }
+
+            return ['estado' => self::PAGO_PENDIENTE, 'detalle' => "Plan de {$total} cuotas creado; falta pagar la primera.", 'habilita_pautas' => false];
+        }
+
+        return ['estado' => self::PAGO_PENDIENTE, 'detalle' => 'Sin pagos: pague al contado o cree un plan de cuotas.', 'habilita_pautas' => false];
+    }
 }
 

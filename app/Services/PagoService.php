@@ -22,6 +22,8 @@ class PagoService
     public function __construct(
         private readonly ProformaService $proformas,
         private readonly MetodoPagoService $metodos,
+        private readonly AvisoService $avisos,
+        private readonly StripeService $stripe,
     ) {
     }
 
@@ -74,9 +76,10 @@ class PagoService
         }
 
         $metodo = $this->obtenerMetodoValido((int) $d['id_metodo'], $actor);
-        $resultado = $this->procesarPasarela($metodo);
+        $resultado = $this->stripe->cobrar($metodo, (float) $proforma->total, "Proforma {$proforma->nro_proforma} (al contado)",
+            ['concepto' => "contado:{$proforma->id_proforma}", 'id_proforma' => $proforma->id_proforma], $d['payment_intent'] ?? null);
 
-        return TransaccionPago::create([
+        $tx = TransaccionPago::create([
             'id_usuario' => $actor->id_usuario,
             'id_metodo' => $metodo->id_metodo,
             'id_proforma' => $proforma->id_proforma,
@@ -85,8 +88,14 @@ class PagoService
             'estado' => $resultado['estado'],
             'codigo_autorizacion' => $resultado['codigo'],
             'mensaje' => $resultado['mensaje'],
+            'stripe_payment_intent' => $resultado['payment_intent'],
             'fecha' => now(),
-        ])->load([
+        ]);
+        if ($tx->estado === 'aprobada') {
+            $this->avisarPago($proforma, 'al contado', (float) $tx->monto, $actor);
+        }
+
+        return $tx->load([
             'metodo:id_metodo,tipo,marca,ultimos4,titular',
             'proforma:id_proforma,nro_proforma,total,estado',
         ]);
@@ -202,9 +211,16 @@ class PagoService
         if ($cuota->estado === 'pagada') {
             throw new NegocioException("La cuota #{$cuota->nro} ya se encuentra pagada.");
         }
+        // Las cuotas se pagan en orden: así el plan nunca queda con huecos
+        $anterior = Cuota::where('id_plan', $plan->id_plan)->where('nro', '<', $cuota->nro)
+            ->where('estado', '<>', 'pagada')->orderBy('nro')->value('nro');
+        if ($anterior !== null) {
+            throw new NegocioException("Pague primero la cuota #{$anterior}: las cuotas se pagan en orden.");
+        }
 
         $metodo = $this->obtenerMetodoValido((int) $d['id_metodo'], $actor);
-        $resultado = $this->procesarPasarela($metodo);
+        $resultado = $this->stripe->cobrar($metodo, (float) $cuota->monto, "Proforma {$plan->proforma->nro_proforma} · cuota {$cuota->nro} de {$plan->nro_cuotas}",
+            ['concepto' => "cuota:{$cuota->id_cuota}", 'id_proforma' => $plan->id_proforma, 'id_cuota' => $cuota->id_cuota], $d['payment_intent'] ?? null);
 
         return DB::transaction(function () use ($actor, $metodo, $plan, $cuota, $resultado) {
             $tx = TransaccionPago::create([
@@ -216,6 +232,7 @@ class PagoService
                 'estado' => $resultado['estado'],
                 'codigo_autorizacion' => $resultado['codigo'],
                 'mensaje' => $resultado['mensaje'],
+                'stripe_payment_intent' => $resultado['payment_intent'],
                 'fecha' => now(),
             ]);
 
@@ -224,6 +241,7 @@ class PagoService
                     'estado' => 'pagada',
                     'fecha_pago' => now(),
                 ]);
+                $this->avisarPago($plan->proforma, "cuota {$cuota->nro} de {$plan->nro_cuotas}", (float) $cuota->monto, $actor);
             }
 
             return $tx->load([
@@ -234,42 +252,82 @@ class PagoService
         });
     }
 
+    // ------------------------------------------------------------------ contratación guiada
+
     /**
-     * Pasarela simulada según especificación:
-     * - Tarjeta terminada en 0002 -> rechazada ("Fondos insuficientes")
-     * - Tarjeta terminada en 0069 o vencida -> rechazada ("Tarjeta vencida")
-     * - Cualquier otra válida -> aprobada con código AUT-XXXXXX
+     * Cobra con Stripe (o verifica el cobro tras 3D Secure si llega $paymentIntent). No escribe en la BD.
+     *
+     * @return array{0: MetodoPago, 1: array}
      */
-    private function procesarPasarela(MetodoPago $metodo): array
+    public function cobrar(int $idMetodo, float $monto, string $descripcion, array $meta, ?string $paymentIntent, Usuario $actor): array
     {
-        if ($metodo->tipo === 'tarjeta') {
-            if ($metodo->ultimos4 === '0002') {
-                return [
-                    'estado' => 'rechazada',
-                    'codigo' => null,
-                    'mensaje' => 'Fondos insuficientes.',
-                ];
-            }
+        $metodo = $this->obtenerMetodoValido($idMetodo, $actor);
 
-            $anioActual = (int) now()->format('Y');
-            $mesActual = (int) now()->format('n');
-            $vencida = $metodo->anio_exp < $anioActual
-                || ($metodo->anio_exp === $anioActual && $metodo->mes_exp < $mesActual);
+        return [$metodo, $this->stripe->cobrar($metodo, $monto, $descripcion, $meta, $paymentIntent)];
+    }
 
-            if ($metodo->ultimos4 === '0069' || $vencida) {
-                return [
-                    'estado' => 'rechazada',
-                    'codigo' => null,
-                    'mensaje' => 'Tarjeta vencida.',
-                ];
-            }
+    /** Devuelve un cobro aprobado cuando la operación no pudo completarse después de cobrar. */
+    public function reembolsar(?string $paymentIntent): void
+    {
+        $this->stripe->reembolsar($paymentIntent);
+    }
+
+    public function montoPrimeraCuota(float $total, int $nroCuotas): float
+    {
+        if ($nroCuotas < 2 || $nroCuotas > 24) {
+            throw new NegocioException('El plan de cuotas debe tener entre 2 y 24 cuotas.');
         }
 
-        return [
-            'estado' => 'aprobada',
-            'codigo' => 'AUT-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6)),
-            'mensaje' => 'Pago aprobado por pasarela simulada.',
-        ];
+        return floor(($total / $nroCuotas) * 100) / 100;
+    }
+
+    /** Intento rechazado por la pasarela: queda registrado aunque la proforma siga pendiente. */
+    public function registrarRechazo(Proforma $proforma, MetodoPago $metodo, float $monto, array $resultado, Usuario $actor): TransaccionPago
+    {
+        return TransaccionPago::create([
+            'id_usuario' => $actor->id_usuario, 'id_metodo' => $metodo->id_metodo, 'id_proforma' => $proforma->id_proforma,
+            'id_cuota' => null, 'monto' => $monto, 'estado' => $resultado['estado'], 'codigo_autorizacion' => $resultado['codigo'],
+            'mensaje' => $resultado['mensaje'], 'stripe_payment_intent' => $resultado['payment_intent'] ?? null, 'fecha' => now(),
+        ]);
+    }
+
+    /**
+     * Cobro aprobado de la contratación (la proforma ya está aprobada dentro de la misma transacción):
+     * contado → una transacción por el total; cuotas → plan + primera cuota pagada.
+     */
+    public function registrarCobroContratacion(Proforma $proforma, MetodoPago $metodo, array $resultado, string $modalidad, array $d, Usuario $actor): TransaccionPago
+    {
+        if ($modalidad !== 'cuotas') {
+            return TransaccionPago::create([
+                'id_usuario' => $actor->id_usuario, 'id_metodo' => $metodo->id_metodo, 'id_proforma' => $proforma->id_proforma,
+                'id_cuota' => null, 'monto' => $proforma->total, 'estado' => 'aprobada', 'codigo_autorizacion' => $resultado['codigo'],
+                'mensaje' => $resultado['mensaje'], 'stripe_payment_intent' => $resultado['payment_intent'] ?? null, 'fecha' => now(),
+            ]);
+        }
+        $plan = $this->crearPlan([
+            'id_proforma' => $proforma->id_proforma, 'nro_cuotas' => (int) $d['nro_cuotas'],
+            'frecuencia' => $d['frecuencia'] ?? 'mensual', 'fecha_inicio' => now()->toDateString(),
+        ], $actor);
+        $cuota = $plan->cuotas()->orderBy('nro')->first();
+        $cuota->update(['estado' => 'pagada', 'fecha_pago' => now()]);
+
+        return TransaccionPago::create([
+            'id_usuario' => $actor->id_usuario, 'id_metodo' => $metodo->id_metodo, 'id_proforma' => $proforma->id_proforma,
+            'id_cuota' => $cuota->id_cuota, 'monto' => $cuota->monto, 'estado' => 'aprobada', 'codigo_autorizacion' => $resultado['codigo'],
+            'mensaje' => $resultado['mensaje'], 'stripe_payment_intent' => $resultado['payment_intent'] ?? null, 'fecha' => now(),
+        ]);
+    }
+
+    /** Pago aprobado: el personal ya puede programar las pautas (si el material está aprobado). */
+    private function avisarPago(Proforma $proforma, string $concepto, float $monto, Usuario $actor): void
+    {
+        $situacion = $proforma->situacionPago();
+        $campania = $proforma->campania()->value('nombre');
+        $siguiente = $situacion['habilita_pautas']
+            ? ' Ya se pueden programar sus pautas'.($campania ? " (campaña «{$campania}»)" : '').' en cuanto su material esté aprobado.'
+            : '';
+        $this->avisos->alPersonal('pautas.crear', "Pago recibido · {$proforma->nro_proforma}",
+            'Se aprobó el pago '.$concepto.' por Bs '.number_format($monto, 2, ',', '.').'. '.$situacion['detalle'].$siguiente, $actor);
     }
 
     private function obtenerMetodoValido(int $idMetodo, Usuario $actor): MetodoPago

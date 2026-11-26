@@ -117,7 +117,7 @@ const MAPA_ESTADO = Object.fromEntries(ESTADOS_MATERIAL.map((e) => [e.id, e]));
 export default function Materiales() {
     const { puede, usuario } = useAuth();
     const { exito, error, confirmar } = useAvisos();
-    const esCliente = usuario?.rol?.nombre === 'Cliente';
+    const esCliente = usuario?.rol === 'Cliente';
 
     // Lista principal y filtros
     const [materiales, setMateriales] = useState([]);
@@ -126,7 +126,7 @@ export default function Materiales() {
     // ?q= en la URL llega desde la búsqueda global del encabezado
     const [params] = useSearchParams();
     const qUrl = params.get('q') ?? '';
-    const [filtros, setFiltros] = useState({ q: qUrl, estado: '', tipo: '', id_campania: '', page: 1 });
+    const [filtros, setFiltros] = useState({ q: qUrl, estado: params.get('estado') ?? '', tipo: '', id_campania: '', page: 1 });
     useEffect(() => {
         setFiltros((f) => (f.q === qUrl ? f : { ...f, q: qUrl, page: 1 }));
     }, [qUrl]);

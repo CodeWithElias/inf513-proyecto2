@@ -46,8 +46,8 @@ class MetricaService
     {
         $pauta = ProgramacionPauta::with('material.campania.proforma')->findOrFail($datos['id_programacion']);
 
-        if (! in_array($pauta->estado, [ProgramacionPauta::ESTADO_EMITIDA, ProgramacionPauta::ESTADO_PROGRAMADA], true)) {
-            throw new NegocioException("La pauta #{$pauta->id_programacion} está {$pauta->estado}; solo se miden pautas emitidas o programadas.");
+        if ($pauta->estado !== ProgramacionPauta::ESTADO_EMITIDA) {
+            throw new NegocioException("La pauta #{$pauta->id_programacion} está {$pauta->estado}; solo se miden pautas publicadas (ya emitidas).");
         }
 
         $alcance = max(0, (int) ($datos['alcance'] ?? 0));

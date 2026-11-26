@@ -32,7 +32,7 @@ class CampaniaController extends Controller
 
     public function update(CampaniaRequest $request, Campania $campania): JsonResponse
     {
-        return $this->ok($this->campanias->actualizar($campania, $request->validated()), 'Campaña actualizada correctamente.');
+        return $this->ok($this->campanias->actualizar($campania, $request->validated(), $request->user()), 'Campaña actualizada correctamente.');
     }
 }
 

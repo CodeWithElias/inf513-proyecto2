@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campania extends Model
 {
@@ -21,6 +22,11 @@ class Campania extends Model
     public function proforma(): BelongsTo
     {
         return $this->belongsTo(Proforma::class, 'id_proforma', 'id_proforma');
+    }
+
+    public function materiales(): HasMany
+    {
+        return $this->hasMany(MaterialPublicitario::class, 'id_campania', 'id_campania');
     }
 }
 

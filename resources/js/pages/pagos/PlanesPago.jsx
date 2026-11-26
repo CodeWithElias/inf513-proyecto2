@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useAvisos } from '../../context/AvisosContext';
 import { limpiarOpciones, useListado, useOpciones } from '../../hooks/useListado';
 import { api, erroresCampos, mensajeError } from '../../lib/api';
+import { pagarConVerificacion } from '../../lib/stripe';
 import { fecha, fechaHora, moneda } from '../../lib/formato';
 
 const FRECUENCIAS = [
@@ -229,7 +230,7 @@ function DetallePlanModal({ id, onCerrar, onCambio }) {
         }
         setPagandoId(cuota.id_cuota);
         try {
-            const { data } = await api.post(`/cuotas/${cuota.id_cuota}/pagar`, { id_metodo: Number(idMetodo) });
+            const { data } = await pagarConVerificacion((extra) => api.post(`/cuotas/${cuota.id_cuota}/pagar`, { id_metodo: Number(idMetodo), ...extra }));
             if (data.data.estado === 'aprobada') {
                 exito(data.message);
                 cargar();

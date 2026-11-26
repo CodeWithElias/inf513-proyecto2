@@ -88,6 +88,7 @@ export default function Espacios() {
             hora_inicio: '08:00',
             hora_fin: '08:30',
             estado: 'disponible',
+            fecha_hasta: '',
         });
         setErrores({});
         setModo('crear');
@@ -117,6 +118,9 @@ export default function Espacios() {
             hora_inicio: { requerido: true, ...HORA, etiqueta: 'hora de inicio' },
             hora_fin: { requerido: true, ...HORA, etiqueta: 'hora de fin' },
         });
+        if (formData.fecha_hasta && formData.fecha_hasta < formData.fecha) {
+            locales.fecha_hasta = ['La fecha «hasta» no puede ser anterior a la fecha de inicio.'];
+        }
         if (!locales.hora_inicio && !locales.hora_fin && formData.hora_fin <= formData.hora_inicio) {
             locales.hora_fin = ['La hora de fin debe ser posterior a la hora de inicio.'];
         }
@@ -133,8 +137,8 @@ export default function Espacios() {
                 id_canal: Number(formData.id_canal),
             };
             if (modo === 'crear') {
-                await api.post('/espacios', payload);
-                exito('Espacio publicitario creado correctamente.');
+                const { data } = await api.post('/espacios', payload);
+                exito(data.message);
             } else {
                 await api.put(`/espacios/${espacioActual.id_espacio}`, payload);
                 exito('Espacio publicitario actualizado correctamente.');
@@ -358,6 +362,18 @@ export default function Espacios() {
                         error={errores.fecha?.[0]}
                         requerido
                     />
+
+                    {modo === 'crear' && (
+                        <Campo
+                            etiqueta="Repetir cada día hasta (opcional)"
+                            nombre="fecha_hasta"
+                            tipo="date"
+                            valor={formData.fecha_hasta}
+                            onChange={(c, v) => setFormData((prev) => ({ ...prev, [c]: v }))}
+                            error={errores.fecha_hasta?.[0]}
+                            ayuda="Crea el mismo horario todos los días del rango (máx. 92 días) para armar la agenda del canal."
+                        />
+                    )}
 
                     <div className="grid grid-cols-2 gap-3">
                         <Campo

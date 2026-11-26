@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Exceptions\NegocioException;
 use App\Http\Controllers\Controller;
+use App\Models\ProgramacionPauta;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -63,8 +64,10 @@ class OpcionesController extends Controller
                     ->whereIn('pl.estado', ['activo', 'completado']))
                 ->when($actor?->esCliente(), fn ($b) => $actor->filtrarProformas($b, 'p.'))
                 ->selectRaw("p.id_proforma as id, p.nro_proforma || COALESCE(' · ' || e.razon_social, '') || ' (Bs ' || to_char(p.total, 'FM999999990.00') || ')' as nombre, p.total as monto"),
+            // Solo tarjetas registradas con Stripe (las anteriores no se pueden cobrar)
             'metodos-pago' => DB::table('metodo_pago')
                 ->where('activo', true)
+                ->whereNotNull('stripe_payment_method')
                 ->when($actor && ! $actor->esPersonal(), fn ($b) => $b->where('id_usuario', $actor->id_usuario))
                 ->selectRaw("id_metodo as id, COALESCE(marca, tipo) || COALESCE(' •••• ' || ultimos4, '') || ' · ' || titular as nombre, tipo, ultimos4, predeterminado"),
 
@@ -87,6 +90,8 @@ class OpcionesController extends Controller
             'espacios-disponibles' => DB::table('espacio_publicitario as e')
                 ->join('canal_difusion as c', 'c.id_canal', '=', 'e.id_canal')
                 ->where('e.estado', 'disponible')
+                ->where('c.activo', true)
+                ->whereNotExists(fn ($w) => $w->from('contratacion_espacio as ce')->whereColumn('ce.id_espacio', 'e.id_espacio')->whereNull('ce.id_programacion'))
                 ->where('e.fecha', '>=', now()->toDateString())
                 ->selectRaw("e.id_espacio as id, c.nombre || ' · ' || to_char(e.fecha, 'DD/MM/YYYY') || ' (' || to_char(e.hora_inicio, 'HH24:MI') || ' - ' || to_char(e.hora_fin, 'HH24:MI') || ')' as nombre"),
             'detalles-proforma' => DB::table('detalle_proforma as dp')
@@ -102,7 +107,7 @@ class OpcionesController extends Controller
                 ->join('campania as c', 'c.id_campania', '=', 'm.id_campania')
                 ->join('espacio_publicitario as e', 'e.id_espacio', '=', 'pp.id_espacio')
                 ->join('canal_difusion as cd', 'cd.id_canal', '=', 'e.id_canal')
-                ->whereIn('pp.estado', ['emitida', 'programada'])
+                ->where('pp.estado', ProgramacionPauta::ESTADO_EMITIDA)
                 ->selectRaw("pp.id_programacion as id, '#' || pp.id_programacion || ' · ' || m.nombre_archivo || ' (' || cd.nombre || ' · ' || to_char(e.fecha, 'DD/MM/YYYY') || ')' as nombre"),
 
             default => throw new NegocioException("No existe la lista de opciones «{$tipo}».", 404),

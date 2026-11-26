@@ -10,6 +10,8 @@
     {{-- Rutas base para React (permite desplegar bajo /inf513/grupo13sa/proyecto2) --}}
     <meta name="app-base" content="{{ rtrim(parse_url(config('app.url'), PHP_URL_PATH) ?? '', '/') }}">
     <meta name="api-base" content="{{ rtrim(config('app.url'), '/') }}/api/v1">
+    {{-- Clave PUBLICABLE de Stripe (pk_…): es pública por diseño. La secreta nunca sale del servidor. --}}
+    <meta name="stripe-key" content="{{ config('services.stripe.key') }}">
     <script>
         // Aplica tema y accesibilidad antes de pintar (evita parpadeo).
         (function () {

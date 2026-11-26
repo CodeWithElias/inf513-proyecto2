@@ -97,6 +97,8 @@ class EstadisticaService
         $topServicios = DB::table('detalle_proforma as dp')
             ->join('tarifa as t', 't.id_tarifa', '=', 'dp.id_tarifa')
             ->join('servicio_publicitario as s', 's.id_servicio', '=', 't.id_servicio')
+            // El Cliente ve solo lo que contrató su empresa (no el volumen de otras empresas)
+            ->when($esCliente, fn ($b) => $b->join('proforma as pf', 'pf.id_proforma', '=', 'dp.id_proforma')->where('pf.id_empresa', $idEmpresa))
             ->selectRaw('s.nombre, COUNT(*) as contrataciones, SUM(dp.subtotal) as volumen_bs')
             ->groupBy('s.id_servicio', 's.nombre')
             ->orderByDesc('contrataciones')

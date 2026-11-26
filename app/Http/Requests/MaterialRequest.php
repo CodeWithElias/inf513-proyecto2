@@ -9,7 +9,9 @@ class MaterialRequest extends ApiRequest
 {
     public function rules(): array
     {
-        $esCreacion = $this->isMethod('POST');
+        // Alta = POST /materiales. «Subir nueva versión» también es POST, pero sobre un material que ya existe
+        // (POST /materiales/{material}/version): ahí la campaña es la del material y no se pide.
+        $esCreacion = $this->isMethod('POST') && $this->route('material') === null;
 
         return [
             'id_campania' => $esCreacion ? ['required', 'integer'] : ['nullable', 'integer'],

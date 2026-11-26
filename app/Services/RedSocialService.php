@@ -94,6 +94,14 @@ class RedSocialService
         if ($canal->activo === $activo) {
             throw new NegocioException($activo ? "La red social {$canal->nombre} ya está activa." : "La red social {$canal->nombre} ya está dada de baja.");
         }
+        if (! $activo) {
+            $programadas = DB::table('programacion_pauta as pp')
+                ->join('espacio_publicitario as e', 'e.id_espacio', '=', 'pp.id_espacio')
+                ->where('e.id_canal', $canal->id_canal)->where('pp.estado', 'programada')->count();
+            if ($programadas > 0) {
+                throw new NegocioException("No se puede dar de baja la red social {$canal->nombre}: tiene {$programadas} pauta(s) programada(s). Cancélelas o reprográmelas primero.");
+            }
+        }
         $canal->update(['activo' => $activo, 'fecha_baja' => $activo ? null : now()->toDateString()]);
 
         return $red->load(self::RELACIONES);

@@ -42,7 +42,9 @@ class ProformaController extends Controller
         $estado = $request->validated('estado');
         $p = $this->proformas->cambiarEstado($proforma, $estado, $request->user());
 
-        return $this->ok($p, $estado === 'aprobada' ? 'Proforma aprobada correctamente.' : 'Proforma rechazada.');
+        return $this->ok($p, $estado === 'aprobada'
+            ? 'Proforma aprobada. Se abrió su campaña: el siguiente paso es pagarla y cargar el material publicitario.'
+            : 'Proforma rechazada.');
     }
 
     public function destroy(Request $request, Proforma $proforma): JsonResponse

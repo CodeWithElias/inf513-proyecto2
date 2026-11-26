@@ -17,12 +17,16 @@ import {
 } from 'lucide-react';
 import { api, mensajeError } from '../../lib/api';
 import { useAvisos } from '../../context/AvisosContext';
+import { useAuth } from '../../context/AuthContext';
 import EncabezadoPagina from '../../components/EncabezadoPagina';
 import Insignia from '../../components/Insignia';
 import { moneda, numero, fecha } from '../../lib/formato';
 
 export default function Dashboard() {
     const { error } = useAvisos();
+    const { puede } = useAuth();
+    // El Cliente llega aquí desde «Reportes»: ve solo lo de su empresa y sin la pestaña de auditoría
+    const veAuditoria = puede('bitacora.ver') || puede('dashboard.ver');
 
     const [pestana, setPestana] = useState('negocio'); // 'negocio' | 'seguridad'
     const [cargando, setCargando] = useState(true);
@@ -58,16 +62,16 @@ export default function Dashboard() {
         try {
             const [rNegocio, rBitacora] = await Promise.all([
                 api.get('/estadisticas/negocio'),
-                api.get('/bitacora/resumen?dias=14'),
+                veAuditoria ? api.get('/bitacora/resumen?dias=14') : Promise.resolve(null),
             ]);
             setDatosNegocio(rNegocio.data?.data || {});
-            setDatosBitacora(rBitacora.data?.data || {});
+            if (rBitacora) setDatosBitacora(rBitacora.data?.data || {});
         } catch (err) {
             error(mensajeError(err));
         } finally {
             setCargando(false);
         }
-    }, [error]);
+    }, [error, veAuditoria]);
 
     useEffect(() => {
         cargarEstadisticas();
@@ -110,7 +114,7 @@ export default function Dashboard() {
                 >
                     <TrendingUp size={16} /> Rendimiento de negocio y pautas
                 </button>
-                <button
+                {veAuditoria && (<button
                     type="button"
                     onClick={() => setPestana('seguridad')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-tema text-sm font-semibold transition-colors ${
@@ -120,7 +124,7 @@ export default function Dashboard() {
                     }`}
                 >
                     <ShieldAlert size={16} /> Auditoría y tráfico de accesos
-                </button>
+                </button>)}
             </div>
 
             {pestana === 'negocio' ? (

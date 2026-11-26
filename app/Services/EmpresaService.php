@@ -6,6 +6,7 @@ use App\Exceptions\NegocioException;
 use App\Models\EmpresaAnunciante;
 use App\Models\Usuario;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /** CU3 - Empresas anunciantes (portado de NEmpresa). */
 class EmpresaService
@@ -71,6 +72,17 @@ class EmpresaService
             throw new NegocioException($activo
                 ? "La empresa {$empresa->razon_social} ya está activa."
                 : "La empresa {$empresa->razon_social} ya está dada de baja.");
+        }
+        if (! $activo) {
+            $pendientes = DB::table('proforma')->where('id_empresa', $empresa->id_empresa)->where('estado', 'pendiente')->count();
+            if ($pendientes > 0) {
+                throw new NegocioException("No se puede dar de baja la empresa {$empresa->razon_social}: tiene {$pendientes} proforma(s) pendiente(s). Apruébelas o recházelas primero.");
+            }
+            $enCurso = DB::table('campania as c')->join('proforma as p', 'p.id_proforma', '=', 'c.id_proforma')
+                ->where('p.id_empresa', $empresa->id_empresa)->whereIn('c.estado', ['activa', 'pausada'])->count();
+            if ($enCurso > 0) {
+                throw new NegocioException("No se puede dar de baja la empresa {$empresa->razon_social}: tiene {$enCurso} campaña(s) en curso. Finalícelas o cancélelas primero.");
+            }
         }
         $empresa->update(['activo' => $activo]);
 

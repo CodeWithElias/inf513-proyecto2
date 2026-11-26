@@ -87,6 +87,11 @@ class MaterialPublicitario extends Model
         return $this->belongsTo(Usuario::class, 'id_usuario', 'id_usuario');
     }
 
+    public function pautas(): HasMany
+    {
+        return $this->hasMany(ProgramacionPauta::class, 'id_material', 'id_material');
+    }
+
     public function revisiones(): HasMany
     {
         return $this->hasMany(RevisionMaterial::class, 'id_material', 'id_material')->orderByDesc('fecha');

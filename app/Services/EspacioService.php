@@ -7,6 +7,7 @@ use App\Models\CanalDifusion;
 use App\Models\EspacioPublicitario;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * C2 / CU5: Gestión de Espacios Publicitarios (NEspacio.java).
@@ -72,8 +73,55 @@ class EspacioService
             'fecha' => $fecha,
             'hora_inicio' => $inicio,
             'hora_fin' => $fin,
-            'estado' => $datos['estado'] ?? EspacioPublicitario::ESTADO_DISPONIBLE,
+            'estado' => $this->estadoManual($datos['estado'] ?? null, EspacioPublicitario::ESTADO_DISPONIBLE),
         ]);
+    }
+
+    /** El estado «ocupado» solo lo asigna una pauta; a mano solo se alterna entre disponible y bloqueado. */
+    private function estadoManual(?string $estado, string $actual): string
+    {
+        $estado = $estado ?: $actual;
+        if ($estado === EspacioPublicitario::ESTADO_OCUPADO && $actual !== EspacioPublicitario::ESTADO_OCUPADO) {
+            throw new NegocioException('Un espacio queda «ocupado» solo al programar una pauta en él. Elija disponible o bloqueado.');
+        }
+
+        return $estado;
+    }
+
+    /** Máximo de días en una generación masiva (igual que NEspacio.MAX_DIAS del Proyecto 1). */
+    public const MAX_DIAS = 92;
+
+    /**
+     * Agenda del canal: el mismo horario cada día entre fecha y fecha_hasta.
+     * Los días en que el horario se superpone con otro espacio se omiten.
+     */
+    public function crearRango(array $datos): array
+    {
+        $desde = new \DateTimeImmutable($datos['fecha']);
+        $hasta = new \DateTimeImmutable($datos['fecha_hasta']);
+        $dias = $desde->diff($hasta)->days + 1;
+        if ($dias > self::MAX_DIAS) {
+            throw new NegocioException('El rango de fechas no puede superar '.self::MAX_DIAS.' días.');
+        }
+        $creados = [];
+        $omitidos = 0;
+        DB::transaction(function () use ($datos, $desde, $dias, &$creados, &$omitidos) {
+            for ($i = 0; $i < $dias; $i++) {
+                try {
+                    $creados[] = $this->crear([...$datos, 'fecha' => $desde->modify("+{$i} day")->format('Y-m-d')])->id_espacio;
+                } catch (NegocioException $e) {
+                    if (! str_contains($e->getMessage(), 'superposición')) {
+                        throw $e;
+                    }
+                    $omitidos++;
+                }
+            }
+        });
+        if (! $creados) {
+            throw new NegocioException('No se creó ningún espacio: el horario se superpone en todos los días del rango.');
+        }
+
+        return ['creados' => count($creados), 'omitidos' => $omitidos, 'ids' => $creados];
     }
 
     /** Modificación de horario o estado (solo si no está ocupado). */
@@ -99,7 +147,7 @@ class EspacioService
             'fecha' => $fecha,
             'hora_inicio' => $inicio,
             'hora_fin' => $fin,
-            'estado' => $datos['estado'] ?? $espacio->estado,
+            'estado' => $this->estadoManual($datos['estado'] ?? null, $espacio->estado),
         ]);
 
         return $espacio;
@@ -110,6 +158,11 @@ class EspacioService
     {
         if ($espacio->estaOcupado()) {
             throw new NegocioException("No se puede eliminar el espacio {$espacio->id_espacio}: está ocupado por una pauta activa.");
+        }
+        // Trazabilidad: un espacio que ya tuvo pautas (canceladas o publicadas) se conserva; se puede bloquear
+        $historial = DB::table('programacion_pauta')->where('id_espacio', $espacio->id_espacio)->count();
+        if ($historial > 0) {
+            throw new NegocioException("No se puede eliminar el espacio {$espacio->id_espacio}: tiene {$historial} pauta(s) en su historial. Bloquéelo en su lugar.");
         }
 
         $espacio->delete();

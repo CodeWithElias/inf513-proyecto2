@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CheckCircle2, Eye, Pencil, Plus, Search, Trash2, XCircle } from 'lucide-react';
 import EncabezadoPagina from '../../components/EncabezadoPagina';
 import Tabla from '../../components/Tabla';
@@ -37,7 +38,7 @@ export default function Proformas() {
     const [errorGeneral, setErrorGeneral] = useState(null);
     const [enviando, setEnviando] = useState(false);
 
-    const esCliente = usuario?.rol?.nombre === 'Cliente';
+    const esCliente = usuario?.rol === 'Cliente';
     const puedeDescuento = puede('proformas.descuento');
 
     const precioTarifa = Object.fromEntries(tarifas.map((t) => [String(t.id), Number(t.monto ?? 0)]));
@@ -189,7 +190,17 @@ export default function Proformas() {
             titulo: 'Estado',
             render: (p) => {
                 const m = MAPA_ESTADO[p.estado];
-                return <Insignia tono={m?.tono ?? 'neutro'}>{m?.nombre ?? p.estado}</Insignia>;
+                const pago = p.situacion_pago;
+                return (
+                    <div className="space-y-1">
+                        <Insignia tono={m?.tono ?? 'neutro'}>{m?.nombre ?? p.estado}</Insignia>
+                        {pago && (
+                            <p className={`text-xs ${pago.habilita_pautas ? 'text-exito' : 'text-aviso'}`} title={pago.detalle}>
+                                {{ pagada: 'Pagada', al_dia: 'Cuotas al día', atrasado: 'Cuotas vencidas', sin_pago: 'Sin pagar' }[pago.estado] ?? pago.estado}
+                            </p>
+                        )}
+                    </div>
+                );
             },
         },
         {
@@ -200,6 +211,11 @@ export default function Proformas() {
                     <button className="btn-icono" onClick={() => setDetalleId(p.id_proforma)} title="Ver detalle" aria-label="Ver detalle">
                         <Eye size={16} />
                     </button>
+                    {p.estado === 'pendiente' && puede('proformas.aprobar') && (
+                        <Link to={`/contratar/${p.id_proforma}`} className="btn btn-primario !py-1 !px-2.5 text-xs" title="Completar la contratación para aprobar la proforma">
+                            Contratar
+                        </Link>
+                    )}
                     {p.estado === 'pendiente' && puede('proformas.editar') && (
                         <button className="btn-icono" onClick={() => abrirEditar(p)} title="Editar" aria-label="Editar proforma">
                             <Pencil size={16} />
@@ -375,7 +391,8 @@ export default function Proformas() {
 }
 
 function DetalleProformaModal({ id, onCerrar, onCambio }) {
-    const { puede } = useAuth();
+    const { puede, usuario } = useAuth();
+    const esCliente = usuario?.rol === 'Cliente';
     const { exito, error, confirmar } = useAvisos();
     const [p, setP] = useState(null);
 
@@ -388,7 +405,7 @@ function DetalleProformaModal({ id, onCerrar, onCambio }) {
         const esAprobar = nuevoEstado === 'aprobada';
         const ok = await confirmar(
             esAprobar
-                ? `¿Aprobar la proforma ${p.nro_proforma}? Quedará habilitada para campaña y pagos.`
+                ? `¿Aprobar la proforma ${p.nro_proforma}? Se abrirá su campaña y quedará lista para pagarla y cargar el material.`
                 : `¿Rechazar la proforma ${p.nro_proforma}?`,
             { titulo: esAprobar ? 'Aprobar proforma' : 'Rechazar proforma', textoAceptar: esAprobar ? 'Aprobar' : 'Rechazar', peligro: !esAprobar },
         );
@@ -417,9 +434,10 @@ function DetalleProformaModal({ id, onCerrar, onCambio }) {
                         <button className="btn btn-peligro" onClick={() => resolverEstado('rechazada')}>
                             <XCircle size={16} /> Rechazar
                         </button>
-                        <button className="btn btn-primario" onClick={() => resolverEstado('aprobada')}>
-                            <CheckCircle2 size={16} /> Aprobar proforma
-                        </button>
+                        {/* Se aprueba solo completando la contratación: campaña, material, horarios y pago */}
+                        <Link to={`/contratar/${p.id_proforma}`} className="btn btn-primario">
+                            <CheckCircle2 size={16} /> {esCliente ? 'Contratar' : 'Contratar en nombre del cliente'}
+                        </Link>
                     </>
                 )
             }
@@ -443,6 +461,32 @@ function DetalleProformaModal({ id, onCerrar, onCambio }) {
                         <div>Validez: <strong>{fecha(p.fecha_validez)}</strong></div>
                         <div>Campaña: <strong>{p.campania?.nombre ?? 'Sin campaña'}</strong></div>
                     </div>
+
+                    {p.estado === 'aprobada' && p.situacion_pago && (
+                        <div className={`rounded-tema border p-3 text-xs space-y-2 ${p.situacion_pago.habilita_pautas ? 'border-exito/40 bg-exito/5' : 'border-aviso/40 bg-aviso/5'}`}>
+                            <p>
+                                <strong>Pago:</strong> {p.situacion_pago.detalle}
+                            </p>
+                            <p className="text-texto-suave">
+                                Siguientes pasos: pago → carga del material → revisión de Canal 11 → programación de pautas → emisión.
+                                Las pautas solo se programan con la proforma pagada (o con las cuotas al día) y el material aprobado.
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                                {!p.situacion_pago.habilita_pautas && puede('pagos.crear') && (
+                                    <>
+                                        <Link to="/pagos" className="btn btn-primario !py-1 !px-2.5 text-xs">Pagar al contado</Link>
+                                        {puede('planes_pago.crear') && <Link to="/planes-pago" className="btn btn-secundario !py-1 !px-2.5 text-xs">Pagar en cuotas</Link>}
+                                    </>
+                                )}
+                                {p.campania && puede('materiales.ver') && (
+                                    <Link to={`/materiales?q=${encodeURIComponent(p.campania.nombre)}`} className="btn btn-secundario !py-1 !px-2.5 text-xs">Material de la campaña</Link>
+                                )}
+                                {p.campania && puede('pautas.ver') && (
+                                    <Link to="/pautas" className="btn btn-secundario !py-1 !px-2.5 text-xs">Pautas</Link>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="overflow-x-auto border border-borde rounded-tema">
                         <table className="w-full text-left text-xs">

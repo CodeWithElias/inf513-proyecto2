@@ -24,10 +24,14 @@ class EspacioController extends Controller
 
     public function store(EspacioRequest $request): JsonResponse
     {
-        return $this->creado(
-            $this->espacios->crear($request->validated()),
-            'Espacio publicitario creado correctamente.'
-        );
+        $d = $request->validated();
+        if (! empty($d['fecha_hasta']) && $d['fecha_hasta'] !== $d['fecha']) {
+            $r = $this->espacios->crearRango($d);
+
+            return $this->creado($r, "Se crearon {$r['creados']} espacio(s)".($r['omitidos'] ? "; se omitieron {$r['omitidos']} día(s) que ya tenían ese horario ocupado" : '').'.');
+        }
+
+        return $this->creado($this->espacios->crear($d), 'Espacio publicitario creado correctamente.');
     }
 
     public function update(EspacioRequest $request, EspacioPublicitario $espacio): JsonResponse

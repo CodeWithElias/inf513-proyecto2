@@ -58,6 +58,11 @@ class UnidadService
             if ($usuarios > 0) {
                 throw new NegocioException("No se puede dar de baja la unidad {$u->nombre}: tiene {$usuarios} usuario(s) activo(s) asignado(s). Reasígnelos primero.");
             }
+            $redes = DB::table('red_social as r')->join('canal_difusion as c', 'c.id_canal', '=', 'r.id_canal')
+                ->where('r.id_unidad', $u->id_unidad)->where('c.activo', true)->count();
+            if ($redes > 0) {
+                throw new NegocioException("No se puede dar de baja la unidad {$u->nombre}: tiene {$redes} red(es) social(es) activa(s) a su cargo. Reasígnelas o délas de baja primero.");
+            }
             $hijas = $u->hijas()->where('activo', true)->count();
             if ($hijas > 0) {
                 throw new NegocioException("No se puede dar de baja la unidad {$u->nombre}: tiene {$hijas} subunidad(es) activa(s). Délas de baja primero.");

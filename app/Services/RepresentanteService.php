@@ -33,6 +33,9 @@ class RepresentanteService
         if (! $usuario->activo) {
             throw new NegocioException("El usuario {$usuario->nombre_completo} está inactivo. Reactívelo primero.");
         }
+        if (! $usuario->esCliente()) {
+            throw new NegocioException("El usuario {$usuario->nombre_completo} tiene el rol {$usuario->rol?->nombre}; solo un usuario con rol Cliente puede representar a una empresa.");
+        }
         if (Representante::find($usuario->id_usuario)) {
             throw new NegocioException("El usuario {$usuario->nombre_completo} ya es cliente. Modifique sus datos de cliente en su lugar.");
         }

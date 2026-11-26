@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\NegocioException;
+use App\Exceptions\PagoRequiereAccion;
 use App\Http\Middleware\RegistrarBitacora;
 use App\Http\Middleware\VerificarPrivilegio;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -41,6 +42,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(fn (Request $r) => $r->is('api/*') || $r->expectsJson());
 
         $json = fn (string $mensaje, int $status, array $extra = []) => response()->json(['message' => $mensaje] + $extra, $status);
+
+        // 3D Secure: el navegador debe completar la verificación de Stripe y reenviar el pago con payment_intent
+        $exceptions->render(fn (PagoRequiereAccion $e) => $json($e->getMessage(), 202, ['data' => [
+            'requiere_accion' => true, 'client_secret' => $e->clientSecret, 'payment_intent' => $e->paymentIntent,
+        ]]));
 
         $exceptions->render(function (NegocioException $e) use ($json) {
             return $json($e->getMessage(), $e->status());

@@ -45,6 +45,11 @@ class UsuarioService
             throw new NegocioException('No puede cambiar su propio rol. Pídaselo a otro administrador.');
         }
         $this->validarRolYUnidad((int) $d['id_rol'], $d['id_unidad'] ?? null);
+        // Un representante de empresa debe seguir siendo Cliente (si no, vería y operaría como cliente con otro rol)
+        if ((int) $d['id_rol'] !== (int) $usuario->id_rol && $usuario->idEmpresa() !== null
+            && Rol::whereKey($d['id_rol'])->value('nombre') !== 'Cliente') {
+            throw new NegocioException("{$usuario->nombre_completo} es representante de una empresa. Quítelo de «Clientes» antes de cambiarle el rol.");
+        }
 
         $usuario->fill([
             'nombre_completo' => $d['nombre_completo'],
