@@ -140,6 +140,8 @@ const plantilla = (nombre) => fs.readFileSync(path.join(PLANTILLAS, nombre), 'ut
 
 fs.writeFileSync(path.join(DESTINO, 'index.php'), plantilla('index.php'));
 fs.writeFileSync(path.join(DESTINO, '.htaccess'), plantilla('.htaccess').replaceAll('__BASE__', BASE));
+// Límites de PHP para subir material publicitario (PHP-FPM lee .user.ini de la carpeta)
+fs.writeFileSync(path.join(DESTINO, '.user.ini'), plantilla('.user.ini'));
 fs.writeFileSync(path.join(LARAVEL, '.htaccess'), plantilla('laravel.htaccess'));
 
 const variables = {

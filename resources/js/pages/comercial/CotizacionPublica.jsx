@@ -17,7 +17,7 @@ export default function CotizacionPublica() {
     const [catalogo, setCatalogo] = useState({ servicios: [], paquetes: [] });
     const [cargando, setCargando] = useState(true);
     const [carrito, setCarrito] = useState([]);
-    const [datos, setDatos] = useState({ nombre: '', email: '', telefono: '' });
+    const [datos, setDatos] = useState({ nombre: '', email: '', telefono: '', crear_cuenta: false, password: '', password_confirmation: '' });
     const [errores, setErrores] = useState({});
     const [errorGeneral, setErrorGeneral] = useState(null);
     const [enviando, setEnviando] = useState(false);
@@ -80,6 +80,12 @@ export default function CotizacionPublica() {
             nombre: { requerido: true, min: 3, max: 150, etiqueta: 'nombre completo' },
             email: { requerido: true, email: true, max: 150, etiqueta: 'correo electrónico' },
             telefono: { ...TELEFONO, etiqueta: 'teléfono' },
+            ...(datos.crear_cuenta
+                ? {
+                      password: { requerido: true, min: 6, max: 100, etiqueta: 'contraseña' },
+                      password_confirmation: { requerido: true, igualA: 'password', etiqueta: 'confirmación de la contraseña' },
+                  }
+                : {}),
         });
         if (carrito.length === 0) {
             locales.carrito = 'Agregue al menos una tarifa o paquete a su cotización.';
@@ -92,8 +98,10 @@ export default function CotizacionPublica() {
 
         setEnviando(true);
         try {
+            const { crear_cuenta, password, password_confirmation, ...contacto } = datos;
             const { data } = await api.post('/publico/cotizar', {
-                ...datos,
+                ...contacto,
+                ...(crear_cuenta ? { crear_cuenta: true, password, password_confirmation } : {}),
                 detalles: carrito.map((c) => ({
                     id_tarifa: c.id_tarifa ?? null,
                     id_paquete: c.id_paquete ?? null,
@@ -102,6 +110,7 @@ export default function CotizacionPublica() {
             });
             setProformaCreada(data.data);
             setCarrito([]);
+            setDatos((d) => ({ ...d, password: '', password_confirmation: '' })); // no dejar la contraseña en memoria
         } catch (err) {
             setErrores(erroresCampos(err));
             setErrorGeneral(mensajeError(err));
@@ -148,6 +157,15 @@ export default function CotizacionPublica() {
                             <p>Correo: <strong>{proformaCreada.visitante?.email}</strong></p>
                             <p>Total estimado: <strong className="text-primario">{moneda(proformaCreada.total)}</strong></p>
                         </div>
+                        {proformaCreada.solicitud_cuenta && (
+                            <div className="bg-primario-suave rounded-tema p-4 text-left text-sm" role="status">
+                                <p className="font-semibold mb-1">Su solicitud de cuenta quedó pendiente</p>
+                                <p className="text-texto-suave">
+                                    Canal 11 revisará su solicitud. Cuando sea aprobada podrá iniciar sesión con <strong>{proformaCreada.visitante?.email}</strong> y
+                                    la contraseña que eligió, y verá esta proforma en su cuenta.
+                                </p>
+                            </div>
+                        )}
                         <div className="flex justify-center gap-3">
                             <button className="btn btn-primario" onClick={() => setProformaCreada(null)}>Hacer otra cotización</button>
                             <Link to="/login" className="btn btn-secundario">Ir al acceso de clientes</Link>
@@ -279,6 +297,24 @@ export default function CotizacionPublica() {
                                 <Campo etiqueta="Nombre completo" nombre="nombre" valor={datos.nombre} onChange={(n, v) => setDatos((d) => ({ ...d, [n]: v }))} error={errores.nombre} requerido />
                                 <Campo etiqueta="Correo electrónico" nombre="email" tipo="email" valor={datos.email} onChange={(n, v) => setDatos((d) => ({ ...d, [n]: v }))} error={errores.email} requerido />
                                 <Campo etiqueta="Teléfono" nombre="telefono" valor={datos.telefono} onChange={(n, v) => setDatos((d) => ({ ...d, [n]: v }))} error={errores.telefono} />
+                                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        className="size-4 mt-0.5 accent-[var(--primario)]"
+                                        checked={datos.crear_cuenta}
+                                        onChange={(e) => setDatos((d) => ({ ...d, crear_cuenta: e.target.checked }))}
+                                    />
+                                    <span>
+                                        <strong>Quiero una cuenta</strong> para seguir mi proforma.
+                                        <span className="block text-xs text-texto-suave">Canal 11 revisará su solicitud; al aprobarla podrá iniciar sesión como cliente.</span>
+                                    </span>
+                                </label>
+                                {datos.crear_cuenta && (
+                                    <div className="space-y-3 border-l-2 border-primario pl-3">
+                                        <Campo etiqueta="Contraseña" nombre="password" tipo="password" valor={datos.password} onChange={(n, v) => setDatos((d) => ({ ...d, [n]: v }))} error={errores.password} requerido autoComplete="new-password" ayuda="Mínimo 6 caracteres. Canal 11 no la conoce." />
+                                        <Campo etiqueta="Repita la contraseña" nombre="password_confirmation" tipo="password" valor={datos.password_confirmation} onChange={(n, v) => setDatos((d) => ({ ...d, [n]: v }))} error={errores.password_confirmation} requerido autoComplete="new-password" />
+                                    </div>
+                                )}
                                 <button type="submit" className="btn btn-primario w-full" disabled={enviando}>
                                     {enviando ? 'Generando proforma…' : 'Solicitar proforma'}
                                 </button>

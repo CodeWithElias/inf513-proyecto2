@@ -17,7 +17,8 @@ use Symfony\Component\HttpFoundation\Response;
 class RegistrarBitacora
 {
     /** Rutas que no se registran (ruido o se registran aparte). */
-    private const OMITIDAS = ['api/v1/visitas', 'api/v1/auth/login', 'api/v1/auth/logout'];
+    private const OMITIDAS = ['api/v1/visitas', 'api/v1/auth/login', 'api/v1/auth/logout',
+        'api/v1/solicitudes/contador', 'api/v1/notificaciones/contador']; // se consulta cada minuto para el contador del menú
 
     public function __construct(private readonly BitacoraService $bitacora)
     {

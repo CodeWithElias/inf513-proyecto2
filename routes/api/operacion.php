@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Route;
 // Persona C - CU4 (material y revisiones), CU5 (espacios, pautas, notificaciones),
 // CU7 (métricas y análisis) y estadísticas del dashboard.
 
+// Archivo del material para <video>/<img>/<audio>: enlace FIRMADO y temporal (no usa token).
+// El enlace solo se entrega a quien puede ver el material (url_vista en el JSON del material).
+Route::get('materiales/{material}/archivo', [MaterialController::class, 'archivo'])
+    ->middleware('signed')->name('materiales.archivo');
+
 Route::middleware('auth:sanctum')->group(function () {
     // CU4: Material publicitario y revisiones
     Route::get('materiales', [MaterialController::class, 'index'])->middleware('permiso:materiales.ver');
@@ -38,6 +43,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // CU5: Notificaciones
     Route::get('notificaciones', [NotificacionController::class, 'index'])->middleware('permiso:notificaciones.ver');
+    Route::get('notificaciones/contador', [NotificacionController::class, 'contador'])->middleware('permiso:notificaciones.ver');
     Route::patch('notificaciones/{notificacion}/leida', [NotificacionController::class, 'marcarLeida'])->middleware('permiso:notificaciones.editar');
     Route::post('notificaciones/marcar-todas', [NotificacionController::class, 'marcarTodasLeidas'])->middleware('permiso:notificaciones.editar');
 

@@ -4,6 +4,7 @@ import { api, mensajeError } from '../../lib/api';
 import { useAvisos } from '../../context/AvisosContext';
 import EncabezadoPagina from '../../components/EncabezadoPagina';
 import { fechaHora } from '../../lib/formato';
+import { avisarCambioNotificaciones } from '../../components/CampanaNotificaciones';
 
 export default function Notificaciones() {
     const { exito, error } = useAvisos();
@@ -41,6 +42,7 @@ export default function Notificaciones() {
             setNotificaciones((prev) =>
                 prev.map((n) => (n.id_notificacion === notif.id_notificacion ? { ...n, leida: true } : n))
             );
+            avisarCambioNotificaciones();
         } catch (err) {
             error(mensajeError(err));
         }
@@ -50,6 +52,7 @@ export default function Notificaciones() {
         try {
             await api.post('/notificaciones/marcar-todas');
             exito('Todas las notificaciones han sido marcadas como leídas.');
+            avisarCambioNotificaciones();
             cargarNotificaciones();
         } catch (err) {
             error(mensajeError(err));

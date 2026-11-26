@@ -9,16 +9,36 @@ import {
     Package,
     FileText,
     Megaphone,
+    LayoutGrid,
+    Users,
+    UserSquare,
+    Network,
+    Share2,
+    Film,
+    AlertTriangle,
 } from 'lucide-react';
 import { api } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
+/** Orden en que se muestran los grupos. "pantallas" se calcula con el menú del rol (sin servidor). */
 const CATEGORIAS = [
+    { clave: 'pantallas', titulo: 'Pantallas', icono: LayoutGrid },
+    { clave: 'usuarios', titulo: 'Usuarios', icono: Users },
+    { clave: 'clientes', titulo: 'Clientes', icono: UserSquare },
     { clave: 'empresas', titulo: 'Empresas', icono: Building2 },
-    { clave: 'servicios', titulo: 'Servicios', icono: Briefcase },
-    { clave: 'paquetes', titulo: 'Paquetes', icono: Package },
     { clave: 'proformas', titulo: 'Proformas', icono: FileText },
     { clave: 'campanias', titulo: 'Campañas', icono: Megaphone },
+    { clave: 'servicios', titulo: 'Servicios', icono: Briefcase },
+    { clave: 'paquetes', titulo: 'Paquetes', icono: Package },
+    { clave: 'materiales', titulo: 'Material publicitario', icono: Film },
+    { clave: 'redes', titulo: 'Redes sociales', icono: Share2 },
+    { clave: 'unidades', titulo: 'Unidades', icono: Network },
+    { clave: 'paginas', titulo: 'Páginas no autorizadas', icono: AlertTriangle },
 ];
+const VACIO = Object.fromEntries(CATEGORIAS.map((c) => [c.clave, []]));
+
+/** Texto sin tildes y en minúsculas ("bitacora" encuentra "Bitácora"). */
+const normalizar = (t) => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 /**
  * C5 - Barra de búsqueda predictiva en el encabezado.
@@ -29,18 +49,26 @@ export default function BusquedaGlobal() {
     const [termino, setTermino] = useState('');
     const [cargando, setCargando] = useState(false);
     const [abierto, setAbierto] = useState(false);
-    const [resultados, setResultados] = useState({
-        empresas: [],
-        servicios: [],
-        paquetes: [],
-        proformas: [],
-        campanias: [],
-    });
+    const [respuesta, setRespuesta] = useState(VACIO);
     const [indiceActivo, setIndiceActivo] = useState(-1);
 
     const contenedorRef = useRef(null);
     const inputRef = useRef(null);
     const navegar = useNavigate();
+    const { menu } = useAuth();
+
+    // Pantallas del menú del rol que coinciden con el texto (ej. "bitácora", "pagos")
+    const pantallas = useMemo(() => {
+        const q = normalizar(termino.trim());
+        if (q.length < 2) return [];
+        return menu
+            .flatMap((m) => (m.hijos?.length ? m.hijos.map((h) => ({ ...h, grupo: m.titulo })) : m.ruta ? [{ ...m, grupo: null }] : []))
+            .filter((m) => normalizar(m.titulo).includes(q) || normalizar(m.grupo).includes(q))
+            .slice(0, 5)
+            .map((m) => ({ id: m.id, titulo: m.titulo, subtitulo: m.grupo ? `Menú · ${m.grupo}` : 'Menú', ruta: m.ruta }));
+    }, [termino, menu]);
+
+    const resultados = useMemo(() => ({ ...respuesta, pantallas }), [respuesta, pantallas]);
 
     // Aplanar los resultados para permitir navegación secuencial con teclado
     const listaAplanada = useMemo(() => {
@@ -58,7 +86,7 @@ export default function BusquedaGlobal() {
     useEffect(() => {
         const texto = termino.trim();
         if (texto.length < 2) {
-            setResultados({ empresas: [], servicios: [], paquetes: [], proformas: [], campanias: [] });
+            setRespuesta(VACIO);
             setCargando(false);
             setIndiceActivo(-1);
             return;
@@ -68,10 +96,10 @@ export default function BusquedaGlobal() {
         const timer = setTimeout(async () => {
             try {
                 const res = await api.get('/buscar', { params: { q: texto } });
-                setResultados(res.data?.data || { empresas: [], servicios: [], paquetes: [], proformas: [], campanias: [] });
+                setRespuesta({ ...VACIO, ...(res.data?.data || {}) });
                 setIndiceActivo(-1);
             } catch {
-                setResultados({ empresas: [], servicios: [], paquetes: [], proformas: [], campanias: [] });
+                setRespuesta(VACIO);
             } finally {
                 setCargando(false);
             }
@@ -153,7 +181,8 @@ export default function BusquedaGlobal() {
                     }}
                     onFocus={() => setAbierto(true)}
                     onKeyDown={alPresionarTecla}
-                    placeholder="Buscar empresas, servicios, proformas... (mín. 2 letras)"
+                    placeholder="Buscar en todo el sistema… (mín. 2 letras)"
+                    aria-label="Búsqueda global"
                     className="w-full pl-9 pr-14 py-1.5 text-sm rounded-tema border border-borde bg-superficie-2/70 text-texto placeholder:text-texto-suave/80 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-primario transition-colors"
                 />
                 <div className="absolute right-2 flex items-center gap-1">
@@ -169,7 +198,7 @@ export default function BusquedaGlobal() {
                             type="button"
                             onClick={() => {
                                 setTermino('');
-                                setResultados({ empresas: [], servicios: [], paquetes: [], proformas: [], campanias: [] });
+                                setRespuesta(VACIO);
                                 inputRef.current?.focus();
                             }}
                             className="p-1 rounded hover:bg-superficie text-texto-suave hover:text-texto transition-colors"

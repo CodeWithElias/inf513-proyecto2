@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ArchivoMaterial;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -61,6 +62,20 @@ class MaterialPublicitario extends Model
         'duracion_seg' => 'integer',
         'tamano_bytes' => 'integer',
     ];
+
+    /** Enlace para ver el material en el navegador (firmado si el archivo está en el servidor). */
+    protected $appends = ['url_vista', 'archivo_interno'];
+
+    public function getUrlVistaAttribute(): ?string
+    {
+        return ArchivoMaterial::urlVista($this);
+    }
+
+    /** true si el archivo está guardado en el servidor (subido o de ejemplo), false si es un enlace externo. */
+    public function getArchivoInternoAttribute(): bool
+    {
+        return ArchivoMaterial::esInterno($this->url_archivo);
+    }
 
     public function campania(): BelongsTo
     {

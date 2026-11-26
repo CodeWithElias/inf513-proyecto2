@@ -10,7 +10,9 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -66,6 +68,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (MethodNotAllowedHttpException $e, Request $r) use ($json) {
             return $r->is('api/*') ? $json('Operación no permitida sobre este recurso.', 405) : null;
+        });
+
+        $exceptions->render(function (InvalidSignatureException $e, Request $r) use ($json) {
+            return $json('El enlace del archivo venció o no es válido. Recargue la página para obtener uno nuevo.', 403);
+        });
+
+        $exceptions->render(function (PostTooLargeException $e, Request $r) use ($json) {
+            return $json('El archivo es demasiado grande. El máximo permitido es 20 MB.', 413);
         });
 
         $exceptions->render(function (ThrottleRequestsException $e, Request $r) use ($json) {

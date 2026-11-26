@@ -49,6 +49,15 @@ class NotificacionService
         return $notificacion;
     }
 
+    /** Notificaciones sin leer del usuario (número de la campana del encabezado). */
+    public function contarNoLeidas(Usuario $actor): int
+    {
+        return Notificacion::query()
+            ->where('id_usuario', $actor->id_usuario)
+            ->where('leida', false)
+            ->count();
+    }
+
     /** Marcar todas las notificaciones pendientes del usuario como leídas. */
     public function marcarTodasLeidas(Usuario $actor): int
     {

@@ -22,6 +22,7 @@ import Ejecuciones from './pages/monitoreo/Ejecuciones';
 // Persona B
 import Empresas from './pages/comercial/Empresas';
 import Visitantes from './pages/comercial/Visitantes';
+import Solicitudes from './pages/comercial/Solicitudes';
 import Servicios from './pages/comercial/Servicios';
 import Tarifas from './pages/comercial/Tarifas';
 import Paquetes from './pages/comercial/Paquetes';
@@ -59,6 +60,7 @@ export const RUTAS = [
     // ---------------- Persona B: comercial y pagos ----------------
     { ruta: '/empresas', componente: Empresas, privilegio: 'empresas.ver' },
     { ruta: '/visitantes', componente: Visitantes, privilegio: 'visitantes.ver' },
+    { ruta: '/solicitudes', componente: Solicitudes, privilegio: 'solicitudes.ver' },
     { ruta: '/servicios', componente: Servicios, privilegio: 'servicios.ver' },
     { ruta: '/tarifas', componente: Tarifas, privilegio: 'tarifas.ver' },
     { ruta: '/paquetes', componente: Paquetes, privilegio: 'paquetes.ver' },

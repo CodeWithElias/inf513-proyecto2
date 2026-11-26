@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\V1\BitacoraController;
 use App\Http\Controllers\Api\V1\CanalController;
 use App\Http\Controllers\Api\V1\MonitoreoController;
 use App\Http\Controllers\Api\V1\OpcionesController;
+use App\Http\Controllers\Api\V1\PerfilController;
+use App\Http\Controllers\Api\V1\SolicitudController;
 use App\Http\Controllers\Api\V1\RedSocialController;
 use App\Http\Controllers\Api\V1\RepresentanteController;
 use App\Http\Controllers\Api\V1\RolController;
@@ -23,6 +25,18 @@ Route::post('visitas', [VisitaController::class, 'registrar'])->middleware('thro
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::post('auth/logout', [AuthController::class, 'logout']);
+
+    // Mi perfil (cada usuario edita lo suyo; no requiere privilegios)
+    Route::put('auth/perfil', [PerfilController::class, 'actualizar']);
+    Route::put('auth/password', [PerfilController::class, 'password'])->middleware('throttle:5,1');
+    Route::get('mi-empresa', [PerfilController::class, 'miEmpresa']);
+    Route::post('mi-empresa', [PerfilController::class, 'registrarEmpresa']);
+
+    // Solicitudes de cuenta de visitantes (visitante → cliente)
+    Route::get('solicitudes', [SolicitudController::class, 'index'])->middleware('permiso:solicitudes.ver');
+    Route::get('solicitudes/contador', [SolicitudController::class, 'contador'])->middleware('permiso:solicitudes.ver');
+    Route::patch('solicitudes/{solicitud}/aprobar', [SolicitudController::class, 'aprobar'])->middleware('permiso:solicitudes.editar');
+    Route::patch('solicitudes/{solicitud}/rechazar', [SolicitudController::class, 'rechazar'])->middleware('permiso:solicitudes.editar');
     Route::get('opciones/{tipo}', [OpcionesController::class, 'show']);
 
     // Bitácora
@@ -84,4 +98,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('paginas', [MonitoreoController::class, 'registrarPagina'])->middleware('permiso:paginas.crear');
     Route::patch('paginas/{pagina}/estado', [MonitoreoController::class, 'revisarPagina'])->middleware('permiso:paginas.editar');
     Route::get('ejecuciones', [MonitoreoController::class, 'ejecuciones'])->middleware('permiso:ejecuciones.ver');
+    // Ejecución manual del monitoreo de YouTube (ejeScr del Proyecto 1); máx. 3 por minuto
+    Route::post('ejecuciones', [MonitoreoController::class, 'ejecutar'])->middleware(['permiso:ejecuciones.crear', 'throttle:3,1']);
 });

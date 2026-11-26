@@ -20,6 +20,8 @@ class MaterialRequest extends ApiRequest
             'duracion_seg' => ['nullable', 'integer', 'min:1', 'max:7200'],
             'tamano_bytes' => ['nullable', 'integer', 'min:0'],
             'texto_publicacion' => ['nullable', 'string', 'max:3000'],
+            // Archivo subido desde la web (alternativa a url_archivo); el formato se valida según el tipo en MaterialService
+            'archivo' => ['nullable', 'file', 'max:'.\App\Support\ArchivoMaterial::MAX_KB],
         ];
     }
 }

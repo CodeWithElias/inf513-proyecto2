@@ -60,6 +60,9 @@ Contraseña de **todos** los usuarios: `clave123!`
 | CU3 Empresas, visitantes, servicios, tarifas, paquetes, proformas, campañas | B | `comercial/` | `comercial.php` |
 | **Portada pública** (`/` sin sesión): oferta vigente, búsqueda predictiva del catálogo en el encabezado, "Cotizar" e "Iniciar sesión". Es la primera vista del Visitante; con sesión, `/` muestra el panel de inicio del rol | A | `Portada.jsx` | `GET publico/catalogo` |
 | Cotización pública sin sesión (`/cotizar`; acepta `?paquete=ID` o `?tarifa=ID` para llegar con el ítem ya en el carrito) | B | `comercial/CotizacionPublica.jsx` | `GET publico/catalogo`, `POST publico/cotizar` |
+| **Visitante → Cliente**: al cotizar puede marcar "Quiero una cuenta" y elegir su contraseña → solicitud **pendiente** → el Director/Administrador la aprueba (se crea su usuario Cliente; conserva sus proformas) o la rechaza con motivo | A | `comercial/Solicitudes.jsx` | `GET solicitudes`, `PATCH solicitudes/{id}/aprobar|rechazar` (tabla `solicitud_cuenta`) |
+| **Mi perfil**: editar datos, cambiar contraseña y (Cliente) **registrar su empresa** quedando como su representante; sus proformas de visitante pasan a la empresa | A | `Perfil.jsx` | `PUT auth/perfil`, `PUT auth/password`, `GET/POST mi-empresa` |
+| **Ejecutar monitoreo** de YouTube a mano (`ejeScr` del Proyecto 1) | A | `monitoreo/Ejecuciones.jsx` | `POST ejecuciones` (`ScrapingService`) |
 | Pagos: métodos (Luhn), pasarela simulada, pago único, planes en cuotas | B | `pagos/` | `comercial.php` |
 | Búsqueda global (endpoint con permisos y "solo lo suyo") | B | — | `GET buscar?q=` |
 | CU4 Material publicitario, versiones y revisiones | C | `operacion/Materiales.jsx` | `operacion.php` |
@@ -145,7 +148,14 @@ los errores 422 del servidor (`{ campo: ['mensaje'] }`).
 Scripts idempotentes en `database/sql/`, ejecutados por las migraciones (ambas **ya aplicadas** en `db_grupo13sa`):
 - `01_seguridad.sql` y `02_seguridad_datos.sql` → migración `2026_11_23_000001_seguridad_proyecto2`
 - `03_pagos.sql` → migración `2026_11_24_000001_pagos_proyecto2`
-- Datos de prueba de pagos: `php artisan db:seed` (`PagosSeeder`, no repite datos si ya existen)
+- `05_solicitudes_cuenta.sql` → migración de solicitudes de cuenta (visitante → cliente)
+- `06_notificaciones_encabezado.sql` → quita "Notificaciones" del menú lateral (ahora es la campana del encabezado)
+- Datos de prueba: `php artisan db:seed` (`PagosSeeder` y `MaterialesDemoSeeder`; no repiten datos si ya existen)
+
+**Archivos del material publicitario:** no hay tabla nueva. El archivo se guarda en `storage/app/private/materiales/`
+y `material_publicitario.url_archivo` guarda su ruta (o un enlace `https://…`). El material de ejemplo está en
+`database/materiales_demo/` (ruta `demo/<archivo>`). Se ven desde *Material publicitario → Ver material* con un enlace
+firmado de 2 horas (`App\Support\ArchivoMaterial`).
 
 | Tabla / objeto | Uso |
 |---|---|

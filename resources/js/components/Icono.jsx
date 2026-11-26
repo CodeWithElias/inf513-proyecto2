@@ -2,7 +2,7 @@ import {
     AlertTriangle, BadgeDollarSign, BarChart3, Bell, Briefcase, Building2, CalendarClock, CalendarDays, Circle,
     CreditCard, Factory, FileBarChart, FileText, Film, Flag, Home, KeyRound, LayoutDashboard, LineChart, ListChecks,
     Megaphone, MonitorSmartphone, Network, Package, PlayCircle, Radar, Radio, Receipt, ScrollText, Search, Share2,
-    Shield, UserRound, UserSquare, Users, Wallet,
+    Shield, UserPlus, UserRound, UserSquare, Users, Wallet,
 } from 'lucide-react';
 
 /**
@@ -13,7 +13,7 @@ const ICONOS = {
     AlertTriangle, BadgeDollarSign, BarChart3, Bell, Briefcase, Building2, CalendarClock, CalendarDays, CreditCard,
     Factory, FileBarChart, FileText, Film, Flag, Home, KeyRound, LayoutDashboard, LineChart, ListChecks, Megaphone,
     MonitorSmartphone, Network, Package, PlayCircle, Radar, Radio, Receipt, ScrollText, Search, Share2, Shield,
-    UserRound, UserSquare, Users, Wallet,
+    UserPlus, UserRound, UserSquare, Users, Wallet,
 };
 
 export default function Icono({ nombre, size = 18, className = '' }) {

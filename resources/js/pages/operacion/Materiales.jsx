@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
     Video,
     Music,
@@ -11,12 +12,13 @@ import {
     ShieldCheck,
     History,
     UploadCloud,
-    ExternalLink,
     Search,
     CheckCircle2,
     XCircle,
     AlertTriangle,
+    Eye,
 } from 'lucide-react';
+import { OrigenArchivo, VisorMaterial, validarArchivo, leerDuracion, extension } from './ArchivoMaterial';
 import { api, mensajeError } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAvisos } from '../../context/AvisosContext';
@@ -28,19 +30,70 @@ import Insignia from '../../components/Insignia';
 import { fechaHora } from '../../lib/formato';
 import { validarCampo, validarLista } from '../../lib/validar';
 
-/** Reglas de validación en el cliente (las mismas de MaterialRequest en el servidor). */
+/** Reglas de validación en el cliente (las mismas de MaterialRequest / MaterialService en el servidor). */
 function reglasMaterial(d, { crear = false, conTipo = true } = {}) {
+    const conEnlace = d.origen === 'enlace';
     const r = {
-        nombre_archivo: { requerido: d.tipo !== 'texto', max: 255, etiqueta: 'nombre del archivo' },
-        url_archivo: { requerido: d.tipo !== 'texto', url: true, max: 500, etiqueta: 'URL del archivo' },
-        texto_publicacion: { requerido: d.tipo === 'texto', max: 3000, etiqueta: 'texto de la publicación' },
+        nombre_archivo: { requerido: d.tipo !== 'texto' && !d.archivo, max: 255, etiqueta: 'nombre del archivo' },
+        texto_publicacion: { max: 3000, etiqueta: 'texto de la publicación' },
     };
+    if (conEnlace) r.url_archivo = { requerido: d.tipo !== 'texto', url: true, max: 500, etiqueta: 'enlace del archivo' };
     if (['video', 'audio'].includes(d.tipo)) {
         r.duracion_seg = { requerido: true, entero: true, minValor: 1, maxValor: 7200, etiqueta: 'duración (segundos)' };
     }
     if (conTipo) r.tipo = { requerido: true, etiqueta: 'tipo de material' };
     if (crear) r.id_campania = { requerido: true, etiqueta: 'campaña' };
     return r;
+}
+
+/** Validación completa del formulario, incluido el archivo elegido. Devuelve { campo: ['mensaje'] }. */
+function validarMaterial(d, opciones) {
+    const errores = validarLista(d, reglasMaterial(d, opciones));
+    if (d.origen === 'archivo') {
+        const e = d.archivo
+            ? validarArchivo(d.archivo, d.tipo)
+            : d.tipo !== 'texto' && !d.interno
+              ? 'Elija el archivo del material (o cambie a «Enlace web»).'
+              : null;
+        if (e) errores.archivo = [e];
+    }
+    if (d.tipo === 'texto' && !d.texto_publicacion?.trim() && !d.archivo && !d.interno && !(d.origen === 'enlace' && d.url_archivo?.trim())) {
+        errores.texto_publicacion = ['Escriba el texto de la publicación, o adjunte un archivo o un enlace.'];
+    }
+    return errores;
+}
+
+/** Estado inicial del bloque de archivo a partir de un material existente (o vacío). */
+const origenDe = (m) => ({
+    origen: m?.url_archivo && !m.archivo_interno ? 'enlace' : 'archivo',
+    archivo: null,
+    interno: Boolean(m?.archivo_interno),
+    nombre_actual: m?.nombre_archivo ?? '',
+    url_actual: m?.url_archivo ?? '',
+    url_archivo: m?.url_archivo && !m.archivo_interno ? m.url_archivo : '',
+});
+
+/**
+ * Arma el FormData para la API: el archivo viaja como multipart y la BD guarda solo su ruta.
+ * Si no se elige archivo nuevo, se reenvía la ruta actual (el servidor solo la acepta si es la del material).
+ */
+function aFormData(d, extra = {}) {
+    const fd = new FormData();
+    const url = d.origen === 'enlace' ? d.url_archivo.trim() : d.archivo ? '' : d.interno ? d.url_actual : '';
+    const campos = {
+        ...extra,
+        tipo: d.tipo,
+        nombre_archivo: d.nombre_archivo,
+        url_archivo: url,
+        formato: d.archivo ? extension(d.archivo.name) : extension(d.nombre_archivo) || d.formato,
+        duracion_seg: ['video', 'audio'].includes(d.tipo) ? d.duracion_seg : '',
+        texto_publicacion: d.texto_publicacion,
+    };
+    for (const [k, v] of Object.entries(campos)) {
+        if (v !== null && v !== undefined && String(v).trim() !== '') fd.append(k, v);
+    }
+    if (d.origen === 'archivo' && d.archivo) fd.append('archivo', d.archivo);
+    return fd;
 }
 
 const TIPOS_MATERIAL = [
@@ -70,7 +123,13 @@ export default function Materiales() {
     const [materiales, setMateriales] = useState([]);
     const [meta, setMeta] = useState({ current_page: 1, last_page: 1, total: 0 });
     const [cargando, setCargando] = useState(false);
-    const [filtros, setFiltros] = useState({ q: '', estado: '', tipo: '', id_campania: '', page: 1 });
+    // ?q= en la URL llega desde la búsqueda global del encabezado
+    const [params] = useSearchParams();
+    const qUrl = params.get('q') ?? '';
+    const [filtros, setFiltros] = useState({ q: qUrl, estado: '', tipo: '', id_campania: '', page: 1 });
+    useEffect(() => {
+        setFiltros((f) => (f.q === qUrl ? f : { ...f, q: qUrl, page: 1 }));
+    }, [qUrl]);
 
     // Opciones auxiliares
     const [opcionesCampania, setOpcionesCampania] = useState([]);
@@ -83,10 +142,10 @@ export default function Materiales() {
         id_campania: '',
         tipo: 'video',
         nombre_archivo: '',
-        url_archivo: '',
         formato: '',
         duracion_seg: '',
         texto_publicacion: '',
+        ...origenDe(null),
     });
     const [erroresForm, setErroresForm] = useState({});
     const [enviando, setEnviando] = useState(false);
@@ -94,12 +153,16 @@ export default function Materiales() {
     // Modal de Nueva Versión
     const [modalVersion, setModalVersion] = useState(false);
     const [formVersion, setFormVersion] = useState({
+        tipo: 'video',
         nombre_archivo: '',
-        url_archivo: '',
         formato: '',
         duracion_seg: '',
         texto_publicacion: '',
+        ...origenDe(null),
     });
+
+    // Visor del material
+    const [materialVisto, setMaterialVisto] = useState(null);
 
     // Modal de Revisión
     const [modalRevision, setModalRevision] = useState(false);
@@ -154,8 +217,25 @@ export default function Materiales() {
 
     const cambiarCampoForm = (campo, valor) => {
         setFormData((prev) => ({ ...prev, [campo]: valor }));
-        if (erroresForm[campo]) {
-            setErroresForm((prev) => ({ ...prev, [campo]: undefined }));
+        if (erroresForm[campo] || campo === 'origen' || campo === 'tipo') {
+            setErroresForm((prev) => ({ ...prev, [campo]: undefined, archivo: undefined, url_archivo: undefined }));
+        }
+    };
+
+    /**
+     * Al elegir un archivo: se valida al instante, se completa el nombre y,
+     * si es video o audio, se lee su duración real.
+     */
+    const elegirArchivo = (setForm, tipo) => async (archivo) => {
+        const e = validarArchivo(archivo, tipo);
+        setErroresForm((er) => ({ ...er, archivo: e ? [e] : undefined, nombre_archivo: undefined }));
+        setForm((prev) => ({ ...prev, archivo, nombre_archivo: archivo ? archivo.name : prev.nombre_actual }));
+        if (archivo && /^(video|audio)\//.test(archivo.type)) {
+            const segundos = await leerDuracion(archivo);
+            if (segundos) {
+                setForm((prev) => (prev.archivo === archivo ? { ...prev, duracion_seg: String(segundos) } : prev));
+                setErroresForm((er) => ({ ...er, duracion_seg: undefined }));
+            }
         }
     };
 
@@ -165,10 +245,10 @@ export default function Materiales() {
             id_campania: opcionesCampania[0]?.id ? String(opcionesCampania[0].id) : '',
             tipo: 'video',
             nombre_archivo: '',
-            url_archivo: '',
             formato: '',
             duracion_seg: '',
             texto_publicacion: '',
+            ...origenDe(null),
         });
         setErroresForm({});
         setModoForm('crear');
@@ -181,10 +261,10 @@ export default function Materiales() {
             id_campania: String(m.id_campania),
             tipo: m.tipo,
             nombre_archivo: m.nombre_archivo || '',
-            url_archivo: m.url_archivo || '',
             formato: m.formato || '',
             duracion_seg: m.duracion_seg ? String(m.duracion_seg) : '',
             texto_publicacion: m.texto_publicacion || '',
+            ...origenDe(m),
         });
         setErroresForm({});
         setModoForm('editar');
@@ -193,7 +273,7 @@ export default function Materiales() {
 
     const guardarMaterial = async (e) => {
         e.preventDefault();
-        const locales = validarLista(formData, reglasMaterial(formData, { crear: modoForm === 'crear' }));
+        const locales = validarMaterial(formData, { crear: modoForm === 'crear' });
         if (Object.keys(locales).length) {
             setErroresForm(locales);
             error('Revise los campos marcados en rojo.');
@@ -202,16 +282,12 @@ export default function Materiales() {
         setEnviando(true);
         setErroresForm({});
         try {
-            const payload = {
-                ...formData,
-                duracion_seg: formData.duracion_seg ? Number(formData.duracion_seg) : null,
-                id_campania: Number(formData.id_campania),
-            };
             if (modoForm === 'crear') {
-                await api.post('/materiales', payload);
+                await api.post('/materiales', aFormData(formData, { id_campania: formData.id_campania }));
                 exito('Material publicitario cargado correctamente.');
             } else {
-                await api.put(`/materiales/${materialActual.id_material}`, payload);
+                // multipart no admite PUT en PHP: se envía POST con _method=PUT (lo entiende Laravel)
+                await api.post(`/materiales/${materialActual.id_material}`, aFormData(formData, { _method: 'PUT' }));
                 exito('Material publicitario modificado correctamente.');
             }
             setModalForm(false);
@@ -231,20 +307,25 @@ export default function Materiales() {
     const abrirNuevaVersion = (m) => {
         setMaterialActual(m);
         setFormVersion({
+            tipo: m.tipo,
             nombre_archivo: m.nombre_archivo || '',
-            url_archivo: m.url_archivo || '',
             formato: m.formato || '',
             duracion_seg: m.duracion_seg ? String(m.duracion_seg) : '',
             texto_publicacion: m.texto_publicacion || '',
+            ...origenDe(m),
         });
         setErroresForm({});
         setModalVersion(true);
     };
 
+    const cambiarCampoVersion = (campo, valor) => {
+        setFormVersion((prev) => ({ ...prev, [campo]: valor }));
+        setErroresForm((prev) => ({ ...prev, [campo]: undefined, ...(campo === 'origen' ? { archivo: undefined, url_archivo: undefined } : {}) }));
+    };
+
     const guardarNuevaVersion = async (e) => {
         e.preventDefault();
-        const datosVersion = { ...formVersion, tipo: materialActual.tipo };
-        const locales = validarLista(datosVersion, reglasMaterial(datosVersion, { conTipo: false }));
+        const locales = validarMaterial(formVersion, { conTipo: false });
         if (Object.keys(locales).length) {
             setErroresForm(locales);
             error('Revise los campos marcados en rojo.');
@@ -253,12 +334,7 @@ export default function Materiales() {
         setErroresForm({});
         setEnviando(true);
         try {
-            const payload = {
-                ...formVersion,
-                tipo: materialActual.tipo,
-                duracion_seg: formVersion.duracion_seg ? Number(formVersion.duracion_seg) : null,
-            };
-            await api.post(`/materiales/${materialActual.id_material}/version`, payload);
+            await api.post(`/materiales/${materialActual.id_material}/version`, aFormData(formVersion));
             exito(`Nueva versión (v${materialActual.version + 1}) registrada correctamente.`);
             setModalVersion(false);
             cargarMateriales();
@@ -362,15 +438,14 @@ export default function Materiales() {
                                 <span className="uppercase font-semibold">{m.formato || m.tipo}</span>
                                 {m.duracion_seg ? ` · ${m.duracion_seg} seg` : ''}
                             </p>
-                            {m.url_archivo && (
-                                <a
-                                    href={m.url_archivo}
-                                    target="_blank"
-                                    rel="noreferrer"
+                            {(m.url_vista || m.texto_publicacion) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setMaterialVisto(m)}
                                     className="inline-flex items-center gap-1 text-xs text-primario hover:underline mt-0.5"
                                 >
-                                    Ver archivo <ExternalLink size={12} />
-                                </a>
+                                    <Eye size={12} aria-hidden /> Ver material
+                                </button>
                             )}
                         </div>
                     </div>
@@ -580,19 +655,17 @@ export default function Materiales() {
                             valor={formData.nombre_archivo}
                             onChange={cambiarCampoForm}
                             placeholder="ej. spot_verano_30s.mp4"
+                            ayuda={formData.origen === 'archivo' ? 'Se completa al elegir el archivo.' : undefined}
                             error={erroresForm.nombre_archivo?.[0]}
                             requerido={formData.tipo !== 'texto'}
                         />
                     </div>
 
-                    <Campo
-                        etiqueta="URL o enlace del archivo"
-                        nombre="url_archivo"
-                        tipo="url"
-                        valor={formData.url_archivo}
-                        onChange={cambiarCampoForm}
-                        placeholder="https://storage.canal11.bo/material/spot.mp4"
-                        error={erroresForm.url_archivo?.[0]}
+                    <OrigenArchivo
+                        datos={formData}
+                        onCambiar={cambiarCampoForm}
+                        onArchivo={elegirArchivo(setFormData, formData.tipo)}
+                        errores={erroresForm}
                         requerido={formData.tipo !== 'texto'}
                     />
 
@@ -649,22 +722,20 @@ export default function Materiales() {
                         volverá al estado <strong className="text-aviso font-medium">Pendiente de revisión</strong>.
                     </p>
 
-                    <Campo
-                        etiqueta="Nombre del archivo"
-                        nombre="nombre_archivo"
-                        valor={formVersion.nombre_archivo}
-                        onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
-                        error={erroresForm.nombre_archivo?.[0]}
+                    <OrigenArchivo
+                        datos={formVersion}
+                        onCambiar={cambiarCampoVersion}
+                        onArchivo={elegirArchivo(setFormVersion, formVersion.tipo)}
+                        errores={erroresForm}
                         requerido={materialActual?.tipo !== 'texto'}
                     />
 
                     <Campo
-                        etiqueta="URL o enlace del archivo"
-                        nombre="url_archivo"
-                        tipo="url"
-                        valor={formVersion.url_archivo}
-                        onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
-                        error={erroresForm.url_archivo?.[0]}
+                        etiqueta="Nombre del archivo"
+                        nombre="nombre_archivo"
+                        valor={formVersion.nombre_archivo}
+                        onChange={cambiarCampoVersion}
+                        error={erroresForm.nombre_archivo?.[0]}
                         requerido={materialActual?.tipo !== 'texto'}
                     />
 
@@ -674,7 +745,7 @@ export default function Materiales() {
                             nombre="duracion_seg"
                             tipo="number"
                             valor={formVersion.duracion_seg}
-                            onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
+                            onChange={cambiarCampoVersion}
                             error={erroresForm.duracion_seg?.[0]}
                             requerido
                         />
@@ -685,7 +756,7 @@ export default function Materiales() {
                         nombre="texto_publicacion"
                         tipo="textarea"
                         valor={formVersion.texto_publicacion}
-                        onChange={(c, v) => setFormVersion((prev) => ({ ...prev, [c]: v }))}
+                        onChange={cambiarCampoVersion}
                         error={erroresForm.texto_publicacion?.[0]}
                         requerido={materialActual?.tipo === 'texto'}
                     />
@@ -790,15 +861,17 @@ export default function Materiales() {
                             <p className="text-xs text-texto-suave">
                                 Campaña: <strong className="text-texto font-medium">{materialActual.campania?.nombre}</strong> · Versión: <strong className="text-texto font-medium">v{materialActual.version}</strong>
                             </p>
-                            {materialActual.url_archivo && (
-                                <a
-                                    href={materialActual.url_archivo}
-                                    target="_blank"
-                                    rel="noreferrer"
+                            {materialActual.url_vista && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setModalHistorial(false);
+                                        setMaterialVisto(materialActual);
+                                    }}
                                     className="inline-flex items-center gap-1 text-xs text-primario hover:underline mt-1"
                                 >
-                                    Abrir archivo original <ExternalLink size={12} />
-                                </a>
+                                    <Eye size={12} aria-hidden /> Ver material
+                                </button>
                             )}
                             {materialActual.texto_publicacion && (
                                 <div className="mt-2 p-2 bg-superficie rounded border border-borde text-xs text-texto whitespace-pre-wrap">
@@ -849,6 +922,21 @@ export default function Materiales() {
                         </div>
                     </div>
                 )}
+            </Modal>
+
+            {/* Modal: Ver material */}
+            <Modal
+                titulo={materialVisto ? `${materialVisto.nombre_archivo} · v${materialVisto.version}` : ''}
+                abierto={Boolean(materialVisto)}
+                onCerrar={() => setMaterialVisto(null)}
+                ancho="max-w-3xl"
+                pie={
+                    <button type="button" className="btn btn-secundario" onClick={() => setMaterialVisto(null)}>
+                        Cerrar
+                    </button>
+                }
+            >
+                <VisorMaterial material={materialVisto} />
             </Modal>
         </div>
     );

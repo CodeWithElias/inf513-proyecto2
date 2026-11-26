@@ -37,9 +37,7 @@ class PagoService
             ->when(! $actor->esPersonal(), function ($q) use ($actor) {
                 $q->where(function ($w) use ($actor) {
                     $w->where('id_usuario', $actor->id_usuario);
-                    if ($actor->idEmpresa()) {
-                        $w->orWhereHas('proforma', fn ($p) => $p->where('id_empresa', $actor->idEmpresa()));
-                    }
+                    $w->orWhereHas('proforma', fn ($p) => $actor->filtrarProformas($p));
                 });
             })
             ->when($f['q'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w
@@ -108,9 +106,7 @@ class PagoService
             ->when(! $actor->esPersonal(), function ($q) use ($actor) {
                 $q->where(function ($w) use ($actor) {
                     $w->where('id_usuario', $actor->id_usuario);
-                    if ($actor->idEmpresa()) {
-                        $w->orWhereHas('proforma', fn ($p) => $p->where('id_empresa', $actor->idEmpresa()));
-                    }
+                    $w->orWhereHas('proforma', fn ($p) => $actor->filtrarProformas($p));
                 });
             })
             ->when($f['q'] ?? null, fn ($q, $v) => $q->whereHas('proforma', fn ($p) => $p->where('nro_proforma', 'ilike', "%{$v}%")))
@@ -296,7 +292,7 @@ class PagoService
             return;
         }
         $esSuyo = $plan->id_usuario === $actor->id_usuario
-            || ($actor->idEmpresa() && $plan->proforma?->id_empresa === $actor->idEmpresa());
+            || $actor->esSuProforma($plan->proforma);
         if (! $esSuyo) {
             throw new NegocioException('No tiene acceso a este plan de pagos.', 403);
         }

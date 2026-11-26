@@ -97,6 +97,52 @@ class Usuario extends Authenticatable
         return $this->representante?->id_empresa;
     }
 
+    /** Si la cuenta nació de una solicitud de visitante aprobada: su id_visitante, o null. */
+    public function idVisitante(): ?int
+    {
+        if (! $this->visitanteCargado) {
+            $this->visitanteCargado = true;
+            $id = DB::table('solicitud_cuenta')
+                ->where('id_usuario', $this->id_usuario)
+                ->where('estado', SolicitudCuenta::APROBADA)
+                ->value('id_visitante');
+            $this->idVisitanteCache = $id === null ? null : (int) $id;
+        }
+
+        return $this->idVisitanteCache;
+    }
+
+    // Memoria por petición de idVisitante() (no son columnas)
+    private bool $visitanteCargado = false;
+    private ?int $idVisitanteCache = null;
+
+    /**
+     * "Solo lo suyo" para proformas del Cliente: las de su empresa y las que hizo como visitante
+     * antes de tener cuenta. $prefijo es el alias de la tabla proforma en la consulta (ej. 'p.').
+     */
+    public function filtrarProformas($consulta, string $prefijo = ''): void
+    {
+        $idEmpresa = $this->idEmpresa();
+        $idVisitante = $this->idVisitante();
+        $consulta->where(function ($w) use ($prefijo, $idEmpresa, $idVisitante) {
+            $w->where("{$prefijo}id_empresa", $idEmpresa ?? 0);
+            if ($idVisitante) {
+                $w->orWhere("{$prefijo}id_visitante", $idVisitante);
+            }
+        });
+    }
+
+    /** ¿La proforma es del cliente (de su empresa o de cuando era visitante)? */
+    public function esSuProforma(?Proforma $proforma): bool
+    {
+        if (! $proforma) {
+            return false;
+        }
+
+        return ($this->idEmpresa() !== null && $proforma->id_empresa === $this->idEmpresa())
+            || ($this->idVisitante() !== null && $proforma->id_visitante === $this->idVisitante());
+    }
+
     public static function clavePrivilegios(int $idRol): string
     {
         return "privilegios_rol_{$idRol}";

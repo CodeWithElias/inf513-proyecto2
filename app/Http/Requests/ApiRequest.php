@@ -20,7 +20,7 @@ abstract class ApiRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge(collect($this->all())
-            ->except(['password'])
+            ->except(['password', 'password_confirmation', 'password_actual'])
             ->map(fn ($v) => is_string($v) ? (trim($v) === '' ? null : trim($v)) : $v)
             ->all());
     }

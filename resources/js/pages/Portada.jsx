@@ -64,7 +64,7 @@ export default function Portada() {
                         </span>
                     </Link>
 
-                    <BuscadorCatalogo paquetes={catalogo.paquetes} servicios={servicios} />
+                    <BuscadorCatalogo paquetes={catalogo.paquetes} servicios={servicios} cargando={cargando} error={error} />
 
                     <PanelAccesibilidad />
                     <Link to="/cotizar" className="btn btn-secundario hidden sm:inline-flex">
@@ -271,7 +271,7 @@ function Esqueleto() {
  * Búsqueda predictiva del catálogo público (encabezado de la página principal).
  * Busca mientras se escribe, sin distinguir tildes; se maneja con flechas, Enter y Esc.
  */
-function BuscadorCatalogo({ paquetes, servicios }) {
+function BuscadorCatalogo({ paquetes, servicios, cargando, error }) {
     const navegar = useNavigate();
     const id = useId();
     const [texto, setTexto] = useState('');
@@ -348,7 +348,13 @@ function BuscadorCatalogo({ paquetes, servicios }) {
             />
             {mostrar && (
                 <ul id={`${id}-lista`} role="listbox" className="tarjeta absolute left-0 right-0 mt-2 py-1 z-50 max-h-96 overflow-y-auto">
-                    {resultados.length === 0 ? (
+                    {cargando ? (
+                        <li className="px-4 py-3 text-sm text-texto-suave">Cargando el catálogo…</li>
+                    ) : error ? (
+                        <li className="px-4 py-3 text-sm text-peligro" role="alert">
+                            No se pudo cargar el catálogo, así que no podemos buscar ahora. Intente de nuevo en unos minutos.
+                        </li>
+                    ) : resultados.length === 0 ? (
                         <li className="px-4 py-3 text-sm text-texto-suave">No encontramos servicios ni paquetes con «{texto.trim()}».</li>
                     ) : (
                         resultados.map((r, i) => (

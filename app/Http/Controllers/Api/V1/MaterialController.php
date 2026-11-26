@@ -7,7 +7,9 @@ use App\Http\Requests\MaterialRequest;
 use App\Http\Requests\RevisionMaterialRequest;
 use App\Models\MaterialPublicitario;
 use App\Services\MaterialService;
+use App\Support\ArchivoMaterial;
 use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\Http\Request;
 
 class MaterialController extends Controller
@@ -52,6 +54,26 @@ class MaterialController extends Controller
             $this->materiales->subirNuevaVersion($material, $request->validated(), $request->user()),
             'Nueva versión de material cargada correctamente.'
         );
+    }
+
+    /**
+     * GET /materiales/{material}/archivo?v=..&expires=..&signature=..  (enlace firmado, sin token)
+     * Lo usan <video>, <audio> e <img>, que no pueden enviar el token. El enlace solo se genera para quien
+     * puede ver el material y vence en 2 horas. Soporta Range para adelantar/retroceder videos.
+     */
+    public function archivo(MaterialPublicitario $material): BinaryFileResponse
+    {
+        $ruta = ArchivoMaterial::rutaAbsoluta($material->url_archivo);
+        if (! $ruta) {
+            abort(404, 'El archivo del material no está disponible.');
+        }
+        $nombre = $material->nombre_archivo ?: basename($ruta);
+
+        return response()->file($ruta, [
+            'Content-Disposition' => 'inline; filename="'.str_replace('"', '', $nombre).'"',
+            'Cache-Control' => 'private, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function destroy(Request $request, MaterialPublicitario $material): JsonResponse

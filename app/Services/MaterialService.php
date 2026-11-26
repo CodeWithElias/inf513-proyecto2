@@ -7,8 +7,10 @@ use App\Models\Campania;
 use App\Models\MaterialPublicitario;
 use App\Models\RevisionMaterial;
 use App\Models\Usuario;
+use App\Support\ArchivoMaterial;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -86,20 +88,28 @@ class MaterialService
         $tipo = $this->validarTipo($datos['tipo'] ?? '');
         $contenido = $this->validarContenido($tipo, $datos);
 
-        return MaterialPublicitario::create([
-            'id_campania' => $campania->id_campania,
-            'id_usuario' => $actor->id_usuario,
-            'tipo' => $tipo,
-            'nombre_archivo' => $contenido['nombre_archivo'],
-            'url_archivo' => $contenido['url_archivo'],
-            'formato' => $contenido['formato'],
-            'duracion_seg' => $contenido['duracion_seg'],
-            'tamano_bytes' => $contenido['tamano_bytes'] ?? null,
-            'texto_publicacion' => $contenido['texto_publicacion'],
-            'version' => 1,
-            'estado' => MaterialPublicitario::ESTADO_PENDIENTE,
-            'fecha_carga' => now(),
-        ]);
+        return DB::transaction(function () use ($campania, $actor, $tipo, $contenido) {
+            $material = MaterialPublicitario::create([
+                'id_campania' => $campania->id_campania,
+                'id_usuario' => $actor->id_usuario,
+                'tipo' => $tipo,
+                'nombre_archivo' => $contenido['nombre_archivo'],
+                'url_archivo' => $contenido['url_archivo'],
+                'formato' => $contenido['formato'],
+                'duracion_seg' => $contenido['duracion_seg'],
+                'tamano_bytes' => $contenido['tamano_bytes'] ?? null,
+                'texto_publicacion' => $contenido['texto_publicacion'],
+                'version' => 1,
+                'estado' => MaterialPublicitario::ESTADO_PENDIENTE,
+                'fecha_carga' => now(),
+            ]);
+            // Archivo subido: se guarda en storage y la BD queda con su ruta
+            if ($contenido['archivo']) {
+                $material->update(['url_archivo' => ArchivoMaterial::guardar($contenido['archivo'], $material->id_material, 1, $contenido['formato'])]);
+            }
+
+            return $material;
+        });
     }
 
     /** Corrige un material mientras aún esté en estado pendiente. */
@@ -112,7 +122,16 @@ class MaterialService
         }
 
         $tipo = ! empty($datos['tipo']) ? $this->validarTipo($datos['tipo']) : $material->tipo;
-        $contenido = $this->validarContenido($tipo, $datos);
+        $contenido = $this->validarContenido($tipo, $datos, $material->url_archivo);
+
+        // Nuevo archivo (o nuevo enlace) para la misma versión: reemplaza al anterior
+        $anterior = $material->url_archivo;
+        if ($contenido['archivo']) {
+            $contenido['url_archivo'] = ArchivoMaterial::guardar($contenido['archivo'], $material->id_material, $material->version, $contenido['formato']);
+        }
+        if ($anterior !== $contenido['url_archivo']) {
+            ArchivoMaterial::borrar($anterior);
+        }
 
         $material->update([
             'tipo' => $tipo,
@@ -136,7 +155,12 @@ class MaterialService
             throw new NegocioException("El material {$material->id_material} está «{$material->estado}»; solo se sube una nueva versión cuando se solicitaron correcciones.");
         }
 
-        $contenido = $this->validarContenido($material->tipo, $datos);
+        $contenido = $this->validarContenido($material->tipo, $datos, $material->url_archivo);
+
+        // El archivo de la versión anterior se conserva (historial); el nuevo se guarda con la nueva versión
+        if ($contenido['archivo']) {
+            $contenido['url_archivo'] = ArchivoMaterial::guardar($contenido['archivo'], $material->id_material, $material->version + 1, $contenido['formato']);
+        }
 
         $material->update([
             'nombre_archivo' => $contenido['nombre_archivo'],
@@ -242,31 +266,47 @@ class MaterialService
         return $t;
     }
 
-    private function validarContenido(string $tipo, array $datos): array
+    /** @param  string|null  $urlActual  url_archivo que ya tiene el material (al editar o subir versión) */
+    private function validarContenido(string $tipo, array $datos, ?string $urlActual = null): array
     {
         $nombre = trim($datos['nombre_archivo'] ?? '');
         $url = trim($datos['url_archivo'] ?? '');
+        // Una ruta interna (archivo en storage) solo vale si es la que el material ya tiene:
+        // así nadie puede apuntar su material al archivo de otro. Lo demás debe ser un enlace web.
+        if ($url !== '' && $url !== $urlActual && ! preg_match('#^https?://\S+$#i', $url)) {
+            throw new NegocioException('El enlace del archivo debe ser una dirección web que empiece con http:// o https://, o suba el archivo.');
+        }
         $duracion = isset($datos['duracion_seg']) ? (int) $datos['duracion_seg'] : null;
         $texto = trim($datos['texto_publicacion'] ?? '');
+
+        // Archivo subido desde la web (alternativa al enlace)
+        $archivo = ($datos['archivo'] ?? null) instanceof UploadedFile ? $datos['archivo'] : null;
+        $extArchivo = null;
+        if ($archivo) {
+            [$extArchivo] = ArchivoMaterial::validar($archivo, $tipo);
+            if ($nombre === '') {
+                $nombre = $archivo->getClientOriginalName();
+            }
+        }
 
         if ($tipo === 'texto') {
             if (empty($nombre)) {
                 $nombre = 'publicacion.txt';
             }
-            if (empty($texto) && empty($url)) {
-                throw new NegocioException('El material de tipo texto requiere el contenido de la publicación o un archivo/enlace.');
+            if (empty($texto) && empty($url) && ! $archivo) {
+                throw new NegocioException('El material de tipo texto requiere el contenido de la publicación, un archivo o un enlace.');
             }
         } else {
             if (empty($nombre)) {
                 throw new NegocioException('Debe indicar el nombre del archivo.');
             }
-            if (empty($url)) {
-                throw new NegocioException('Debe indicar la URL o ruta del archivo.');
+            if (empty($url) && ! $archivo) {
+                throw new NegocioException('Suba el archivo del material o indique un enlace (URL) donde se encuentre.');
             }
         }
 
-        // Extraer y validar formato/extensión
-        $formato = strtolower(trim($datos['formato'] ?? pathinfo($nombre, PATHINFO_EXTENSION)));
+        // Extraer y validar formato/extensión (si se subió un archivo, manda su extensión real)
+        $formato = $extArchivo ?? strtolower(trim($datos['formato'] ?? pathinfo($nombre, PATHINFO_EXTENSION)));
         $formatosValidos = MaterialPublicitario::FORMATOS_VALIDOS[$tipo] ?? [];
 
         if (! empty($formatosValidos) && ! in_array($formato, $formatosValidos, true)) {
@@ -285,8 +325,9 @@ class MaterialService
             'url_archivo' => $url ?: null,
             'formato' => $formato ?: null,
             'duracion_seg' => $duracion,
-            'tamano_bytes' => isset($datos['tamano_bytes']) ? (int) $datos['tamano_bytes'] : null,
+            'tamano_bytes' => $archivo ? $archivo->getSize() : (isset($datos['tamano_bytes']) ? (int) $datos['tamano_bytes'] : null),
             'texto_publicacion' => $texto ?: null,
+            'archivo' => $archivo,
         ];
     }
 

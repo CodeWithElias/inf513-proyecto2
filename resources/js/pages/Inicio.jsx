@@ -20,6 +20,18 @@ export default function Inicio() {
                 {usuario.ultimo_acceso && <p className="text-xs text-texto-suave mt-2">Último acceso: {fechaHora(usuario.ultimo_acceso)}</p>}
             </section>
 
+            {usuario.rol === 'Cliente' && !usuario.id_empresa && (
+                <section className="tarjeta p-5 mb-6 border-l-4 border-l-acento flex flex-col sm:flex-row sm:items-center gap-3 justify-between" role="status">
+                    <div>
+                        <p className="font-semibold">Registre su empresa para contratar campañas</p>
+                        <p className="text-sm text-texto-suave">
+                            Ya puede ver las proformas que generó como visitante. Para cotizar desde su cuenta, cargar material, pagar en línea y ver el impacto de sus anuncios, registre la empresa que representa.
+                        </p>
+                    </div>
+                    <Link to="/perfil" className="btn btn-primario shrink-0">Registrar mi empresa</Link>
+                </section>
+            )}
+
             <h2 className="text-lg font-semibold mb-3">Accesos rápidos</h2>
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {accesos.map((a) => (
