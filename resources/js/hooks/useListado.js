@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, mensajeError } from '../lib/api';
 
 /**
@@ -11,11 +12,23 @@ export function useListado(endpoint, filtrosIniciales = {}) {
     const [meta, setMeta] = useState(null);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState(null);
-    const [filtros, setFiltros] = useState({ q: '', ...filtrosIniciales });
+    // ?q= en la URL (lo usa la búsqueda global del encabezado) llega como texto de búsqueda inicial
+    const [params] = useSearchParams();
+    const qUrl = params.get('q') ?? '';
+    const [filtros, setFiltros] = useState({ ...filtrosIniciales, q: qUrl || filtrosIniciales.q || '' });
     const [pagina, setPagina] = useState(1);
     const [version, setVersion] = useState(0);
     const temporizador = useRef(null);
     const [qDiferida, setQDiferida] = useState(filtros.q);
+
+    // Si se busca otra vez desde el encabezado estando ya en la misma pantalla, cambia ?q= sin desmontar
+    const qUrlAnterior = useRef(qUrl);
+    useEffect(() => {
+        if (qUrl === qUrlAnterior.current) return;
+        qUrlAnterior.current = qUrl;
+        setFiltros((f) => ({ ...f, q: qUrl }));
+        setPagina(1);
+    }, [qUrl]);
 
     // Espera 300 ms después de escribir antes de buscar.
     useEffect(() => {

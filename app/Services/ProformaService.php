@@ -45,7 +45,7 @@ class ProformaService
         return Proforma::query()
             ->with(self::RELACIONES_LISTA)
             ->withCount('detalles')
-            ->when($actor->esCliente(), fn ($q) => $q->where('id_empresa', $actor->idEmpresa() ?? 0))
+            ->when($actor->esCliente(), fn ($q) => $actor->filtrarProformas($q))
             ->when($f['q'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w
                 ->where('nro_proforma', 'ilike', "%{$v}%")
                 ->orWhereHas('empresa', fn ($e) => $e->where('razon_social', 'ilike', "%{$v}%"))
@@ -230,7 +230,14 @@ class ProformaService
         $fechaEmision = now()->toDateString();
         $fechaValidez = now()->addDays(15)->toDateString();
 
-        return DB::transaction(function () use ($d, $lineas, $subtotal, $fechaEmision, $fechaValidez) {
+        // Visitante → Cliente: validar el correo ANTES de crear la proforma
+        $quiereCuenta = filter_var($d['crear_cuenta'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $solicitudes = app(SolicitudCuentaService::class);
+        if ($quiereCuenta) {
+            $solicitudes->validarCorreoDisponible($d['email']);
+        }
+
+        return DB::transaction(function () use ($d, $lineas, $subtotal, $fechaEmision, $fechaValidez, $quiereCuenta, $solicitudes) {
             $email = isset($d['email']) ? mb_strtolower($d['email']) : null;
             $visitante = $email ? Visitante::whereRaw('lower(email) = lower(?)', [$email])->first() : null;
 
@@ -262,14 +269,19 @@ class ProformaService
                 DetalleProforma::create([...$linea, 'id_proforma' => $proforma->id_proforma]);
             }
 
-            return $proforma->load(self::RELACIONES_DETALLE);
+            $proforma->load(self::RELACIONES_DETALLE);
+            if ($quiereCuenta) {
+                $proforma->setAttribute('solicitud_cuenta', $solicitudes->registrar($visitante, $d['password']));
+            }
+
+            return $proforma;
         });
     }
 
     public function exigirAcceso(Proforma $proforma, Usuario $actor): void
     {
-        if ($actor->esCliente() && $proforma->id_empresa !== $actor->idEmpresa()) {
-            throw new NegocioException('No tiene acceso a esta proforma: pertenece a otra empresa.', 403);
+        if ($actor->esCliente() && ! $actor->esSuProforma($proforma)) {
+            throw new NegocioException('No tiene acceso a esta proforma: no es suya ni de su empresa.', 403);
         }
     }
 
@@ -278,7 +290,7 @@ class ProformaService
         if ($actor->esCliente()) {
             $id = $actor->idEmpresa();
             if (! $id) {
-                throw new NegocioException('Su cuenta de cliente no está asociada a ninguna empresa anunciante.');
+                throw new NegocioException('Para cotizar desde su cuenta primero registre su empresa en «Mi perfil». Mientras tanto puede seguir viendo las proformas que generó como visitante.');
             }
 
             return $id;

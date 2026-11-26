@@ -21,7 +21,7 @@ class CampaniaService
     {
         return Campania::query()
             ->with(self::RELACIONES)
-            ->when($actor->esCliente(), fn ($q) => $q->whereHas('proforma', fn ($p) => $p->where('id_empresa', $actor->idEmpresa() ?? 0)))
+            ->when($actor->esCliente(), fn ($q) => $q->whereHas('proforma', fn ($p) => $actor->filtrarProformas($p)))
             ->when($f['q'] ?? null, fn ($q, $v) => $q->where(fn ($w) => $w
                 ->where('nombre', 'ilike', "%{$v}%")
                 ->orWhereHas('proforma', fn ($p) => $p->where('nro_proforma', 'ilike', "%{$v}%"))))
@@ -33,7 +33,7 @@ class CampaniaService
     public function obtener(Campania $campania, Usuario $actor): Campania
     {
         $campania->load(self::RELACIONES);
-        if ($actor->esCliente() && $campania->proforma?->id_empresa !== $actor->idEmpresa()) {
+        if ($actor->esCliente() && ! $actor->esSuProforma($campania->proforma)) {
             throw new NegocioException('No tiene acceso a esta campaña: pertenece a otra empresa.', 403);
         }
 

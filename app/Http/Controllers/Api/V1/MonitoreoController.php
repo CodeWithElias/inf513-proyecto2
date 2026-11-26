@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\EjecutarMonitoreoRequest;
 use App\Http\Requests\EstadoRequest;
 use App\Http\Requests\PaginaRequest;
 use App\Http\Requests\RevisarPaginaRequest;
@@ -10,6 +11,7 @@ use App\Http\Requests\TerminoRequest;
 use App\Models\PaginaNoAutorizada;
 use App\Models\TerminoMonitoreo;
 use App\Services\MonitoreoService;
+use App\Services\ScrapingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -62,5 +64,17 @@ class MonitoreoController extends Controller
     public function ejecuciones(Request $request): JsonResponse
     {
         return $this->paginado($this->monitoreo->listarEjecuciones($request->query(), $this->porPagina($request)));
+    }
+
+    /** POST /ejecuciones { id_plataforma, id_termino? } -> ejecuta el monitoreo ahora (ejeScr del Proyecto 1). */
+    public function ejecutar(EjecutarMonitoreoRequest $request, ScrapingService $scraping): JsonResponse
+    {
+        $r = $scraping->ejecutar((int) $request->validated('id_plataforma'), $request->validated('id_termino') ? (int) $request->validated('id_termino') : null);
+
+        $mensaje = $r['estado'] === 'error'
+            ? "El monitoreo terminó con errores: {$r['errores']}"
+            : "Monitoreo completado: {$r['cuentas_analizadas']} cuenta(s) analizada(s), {$r['nuevas']} página(s) nueva(s).";
+
+        return $this->creado($r, $mensaje);
     }
 }

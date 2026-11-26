@@ -2,12 +2,29 @@ import { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ChevronDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useContadores } from '../hooks/useContadores';
 import Icono from './Icono';
 import Logo from './Logo';
+
+/** Círculo con la cantidad de pendientes (no se muestra si es 0). */
+function Contador({ n }) {
+    if (!n) return null;
+    return (
+        <span
+            className="ml-auto min-w-5 h-5 px-1.5 rounded-full bg-acento text-white text-xs font-bold flex items-center justify-center shadow"
+            aria-label={`${n} pendiente${n === 1 ? '' : 's'}`}
+            title={`${n} pendiente${n === 1 ? '' : 's'}`}
+        >
+            {n > 99 ? '99+' : n}
+        </span>
+    );
+}
 
 /** Menú lateral renderizado desde la BD (menu_item) según los privilegios del rol. */
 export default function Sidebar({ abierto, onCerrar }) {
     const { menu, usuario } = useAuth();
+    const contadores = useContadores(); // { '/solicitudes': 3, ... }
+    const totalGrupo = (item) => (item.hijos ?? []).reduce((s, h) => s + (contadores[h.ruta] ?? 0), 0);
     const { pathname } = useLocation();
     const grupoActivo = menu.find((g) => g.hijos?.some((h) => pathname.startsWith(h.ruta)))?.id;
     const [abiertos, setAbiertos] = useState(() => new Set(grupoActivo ? [grupoActivo] : []));
@@ -54,6 +71,8 @@ export default function Sidebar({ abierto, onCerrar }) {
                                 >
                                     <Icono nombre={item.icono} />
                                     <span className="flex-1 text-left">{item.titulo}</span>
+                                    {/* Con el grupo cerrado, el total de sus pendientes se muestra en el grupo */}
+                                    {!abiertos.has(item.id) && <Contador n={totalGrupo(item)} />}
                                     <ChevronDown size={16} className={`transition-transform ${abiertos.has(item.id) ? 'rotate-180' : ''}`} aria-hidden />
                                 </button>
                                 {abiertos.has(item.id) && (
@@ -61,7 +80,8 @@ export default function Sidebar({ abierto, onCerrar }) {
                                         {item.hijos.map((h) => (
                                             <NavLink key={h.id} to={h.ruta} className={claseEnlace} onClick={onCerrar}>
                                                 <Icono nombre={h.icono} size={16} />
-                                                {h.titulo}
+                                                <span className="flex-1">{h.titulo}</span>
+                                                <Contador n={contadores[h.ruta]} />
                                             </NavLink>
                                         ))}
                                     </div>

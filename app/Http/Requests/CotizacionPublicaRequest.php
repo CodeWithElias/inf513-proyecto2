@@ -15,6 +15,9 @@ class CotizacionPublicaRequest extends ApiRequest
             'detalles.*.id_paquete' => ['nullable', 'integer'],
             'detalles.*.cantidad' => ['required', 'integer', 'min:1', 'max:10000'],
             'detalles.*.frecuencia' => ['nullable', 'string', 'max:50'],
+            // Visitante → Cliente: si quiere una cuenta, elige su contraseña (queda pendiente de aprobación)
+            'crear_cuenta' => ['nullable', 'boolean'],
+            'password' => ['exclude_unless:crear_cuenta,true', 'required', 'string', 'min:6', 'max:100', 'confirmed'],
         ];
     }
 }

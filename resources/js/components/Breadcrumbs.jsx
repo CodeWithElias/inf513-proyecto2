@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const RUTAS_ESPECIALES = {
     '/perfil': { grupo: 'Cuenta', pagina: 'Mi perfil' },
     '/cotizar': { grupo: 'Comercial', pagina: 'Cotización en línea' },
+    '/notificaciones': { grupo: 'Cuenta', pagina: 'Notificaciones' },
 };
 
 /**
@@ -32,7 +33,7 @@ export default function Breadcrumbs() {
                 if (hijo) {
                     return { grupo: item.titulo, pagina: hijo.titulo };
                 }
-            } else if (item.ruta && (item.ruta === pathname || pathname.startsWith(item.ruta))) {
+            } else if (item.ruta && (item.ruta === pathname || (item.ruta !== '/' && pathname.startsWith(item.ruta)))) {
                 return { grupo: null, pagina: item.titulo };
             }
         }

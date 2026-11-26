@@ -61,10 +61,13 @@ class ProformaController extends Controller
     /** B3 - Solicitud de proforma pública por un visitante (sin sesión). */
     public function cotizarPublica(CotizacionPublicaRequest $request): JsonResponse
     {
-        return $this->creado(
-            $this->proformas->cotizarPublica($request->validated()),
-            'Cotización generada correctamente.'
-        );
+        $proforma = $this->proformas->cotizarPublica($request->validated());
+        $mensaje = 'Cotización generada correctamente.';
+        if ($proforma->solicitud_cuenta ?? null) {
+            $mensaje .= ' Su solicitud de cuenta quedó pendiente: cuando Canal 11 la apruebe podrá iniciar sesión con su correo y la contraseña que eligió.';
+        }
+
+        return $this->creado($proforma, $mensaje);
     }
 }
 

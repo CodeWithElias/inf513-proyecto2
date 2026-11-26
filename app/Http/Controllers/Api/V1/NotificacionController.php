@@ -21,6 +21,12 @@ class NotificacionController extends Controller
         );
     }
 
+    /** GET /notificaciones/contador → { no_leidas } (campana del encabezado). */
+    public function contador(Request $request): JsonResponse
+    {
+        return $this->ok(['no_leidas' => $this->notificaciones->contarNoLeidas($request->user())]);
+    }
+
     public function marcarLeida(Request $request, Notificacion $notificacion): JsonResponse
     {
         return $this->ok(

@@ -8,6 +8,7 @@ import Footer from './Footer';
 import PanelAccesibilidad from './PanelAccesibilidad';
 import BusquedaGlobal from './BusquedaGlobal';
 import Breadcrumbs from './Breadcrumbs';
+import CampanaNotificaciones from './CampanaNotificaciones';
 
 /** Estructura de todas las pantallas con sesión: menú lateral, encabezado, contenido y pie. */
 export default function Layout() {
@@ -42,6 +43,7 @@ export default function Layout() {
                         <BusquedaGlobal />
                     </div>
 
+                    <CampanaNotificaciones />
                     <PanelAccesibilidad />
                     <Link to="/perfil" className="hidden sm:flex items-center gap-2 text-sm hover:underline" title={usuario?.email}>
                         <UserCircle2 size={22} aria-hidden />

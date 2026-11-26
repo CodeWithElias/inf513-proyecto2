@@ -114,6 +114,27 @@ aplica desde una PC con `php artisan migrate`, porque la BD es la misma.
 
 > **Nunca** ejecutar `migrate:fresh` ni `migrate:reset`: la BD es compartida con el Proyecto 1.
 
+**Pendiente en producción** (se hizo en la BD local mientras tecnoweb estuvo caído). Desde una PC con el `.env`
+apuntando a `db_grupo13sa`:
+
+```bash
+php artisan migrate                                   # 04 monitoreo manual, 05 solicitudes de cuenta, 06 notificaciones en el encabezado
+php artisan db:seed --class=MaterialesDemoSeeder      # enlaza el material de ejemplo con sus archivos
+```
+
+## Archivos del material publicitario
+
+- Los archivos que se suben desde la web se guardan en `laravel/storage/app/private/materiales/<id>/v<versión>-<nombre>`
+  y la BD guarda **solo la ruta** en `material_publicitario.url_archivo`. También se acepta un enlace web (`https://…`).
+- El material de ejemplo está en `laravel/database/materiales_demo/` (se sube con el resto del código) y su ruta en la
+  BD es `demo/<archivo>`. Lo enlaza `MaterialesDemoSeeder`.
+- Los archivos se sirven con un **enlace firmado** que vence a las 2 horas (`/api/v1/materiales/{id}/archivo?…&signature=…`),
+  así un `<video>` o `<img>` puede cargarlos sin el token y nadie puede adivinar la URL de otro material.
+- Requisitos en el servidor: `laravel/storage` con permisos `777` (si no, la subida responde *“No se puede guardar
+  el archivo en el servidor”* y solo funcionan los enlaces) y el `.user.ini` de `/proyecto2` (sube a 25 MB el límite de
+  PHP; el sistema acepta hasta 20 MB por archivo).
+- La acción de GitHub excluye `laravel/storage/app/private/materiales/**`: un despliegue nunca borra lo que suben los usuarios.
+
 ## Problemas frecuentes
 
 | Síntoma | Causa probable | Solución |
@@ -122,4 +143,6 @@ aplica desde una PC con `php artisan migrate`, porque la BD es la misma.
 | La portada carga sin estilos | Falta `build/` o `APP_URL` mal | Subir `build/`; revisar `APP_URL` en `laravel/entorno.php` |
 | `/proyecto2/usuarios` o `/api/v1/...` da 404 de Apache | `.htaccess` no subido o `RewriteBase` distinto | Subir `.htaccess`; el diagnóstico muestra el `SCRIPT_NAME` real |
 | Error 500 | Permisos de escritura o extensión faltante | Ver el diagnóstico |
+| Al subir material: *“No se puede guardar el archivo en el servidor”* | `laravel/storage` sin permisos de escritura | Permisos `777` recursivos a `laravel/storage` |
+| Al subir material: *“El archivo es demasiado grande”* con archivos chicos | PHP no leyó el `.user.ini` | Verificar que `.user.ini` esté en `/proyecto2`; PHP-FPM lo relee cada 5 minutos |
 | El diagnóstico dice "laravel/composer.json NO bloqueado" | Apache ignora los `.htaccess` | **Borrar la carpeta `laravel/` de inmediato** y pedir al administrador que habilite `AllowOverride` |

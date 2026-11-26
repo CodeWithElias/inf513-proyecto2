@@ -25,6 +25,7 @@ class OpcionesController extends Controller
                 ->when($actor?->esCliente(), fn ($b) => $b->where('id_empresa', $actor->idEmpresa() ?? 0))
                 ->select('id_empresa as id', 'razon_social as nombre'),
             'plataformas' => DB::table('plataforma')->select('id_plataforma as id', 'nombre'),
+            'terminos' => DB::table('termino_monitoreo')->where('activo', true)->select('id_termino as id', 'termino as nombre'),
             'usuarios' => DB::table('usuario')->where('activo', true)
                 ->selectRaw("id_usuario as id, nombre_completo || ' (' || email || ')' as nombre"),
             'usuarios-sin-cliente' => DB::table('usuario as u')->where('u.activo', true)
@@ -47,7 +48,7 @@ class OpcionesController extends Controller
                 ->leftJoin('empresa_anunciante as e', 'e.id_empresa', '=', 'p.id_empresa')
                 ->where('p.estado', 'aprobada')
                 ->whereNotExists(fn ($w) => $w->from('campania as c')->whereColumn('c.id_proforma', 'p.id_proforma'))
-                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->when($actor?->esCliente(), fn ($b) => $actor->filtrarProformas($b, 'p.'))
                 ->selectRaw("p.id_proforma as id, p.nro_proforma || COALESCE(' · ' || e.razon_social, '') || ' (Bs ' || to_char(p.total, 'FM999999990.00') || ')' as nombre"),
             'proformas-pagables' => DB::table('proforma as p')
                 ->leftJoin('empresa_anunciante as e', 'e.id_empresa', '=', 'p.id_empresa')
@@ -60,7 +61,7 @@ class OpcionesController extends Controller
                 ->whereNotExists(fn ($w) => $w->from('plan_pago as pl')
                     ->whereColumn('pl.id_proforma', 'p.id_proforma')
                     ->whereIn('pl.estado', ['activo', 'completado']))
-                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->when($actor?->esCliente(), fn ($b) => $actor->filtrarProformas($b, 'p.'))
                 ->selectRaw("p.id_proforma as id, p.nro_proforma || COALESCE(' · ' || e.razon_social, '') || ' (Bs ' || to_char(p.total, 'FM999999990.00') || ')' as nombre, p.total as monto"),
             'metodos-pago' => DB::table('metodo_pago')
                 ->where('activo', true)
@@ -72,7 +73,7 @@ class OpcionesController extends Controller
                 ->join('proforma as p', 'p.id_proforma', '=', 'c.id_proforma')
                 ->leftJoin('empresa_anunciante as e', 'e.id_empresa', '=', 'p.id_empresa')
                 ->whereIn('c.estado', ['activa', 'pausada'])
-                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->when($actor?->esCliente(), fn ($b) => $actor->filtrarProformas($b, 'p.'))
                 ->selectRaw("c.id_campania as id, c.nombre || COALESCE(' · ' || e.razon_social, '') || ' (' || c.estado || ')' as nombre"),
             'canales' => DB::table('canal_difusion')
                 ->where('activo', true)
@@ -81,7 +82,7 @@ class OpcionesController extends Controller
                 ->join('campania as c', 'c.id_campania', '=', 'm.id_campania')
                 ->join('proforma as p', 'p.id_proforma', '=', 'c.id_proforma')
                 ->where('m.estado', 'aprobado')
-                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->when($actor?->esCliente(), fn ($b) => $actor->filtrarProformas($b, 'p.'))
                 ->selectRaw("m.id_material as id, m.nombre_archivo || ' (' || m.tipo || ' · v' || m.version || ') · ' || c.nombre as nombre, m.id_campania"),
             'espacios-disponibles' => DB::table('espacio_publicitario as e')
                 ->join('canal_difusion as c', 'c.id_canal', '=', 'e.id_canal')
@@ -94,7 +95,7 @@ class OpcionesController extends Controller
                 ->leftJoin('tarifa as t', 't.id_tarifa', '=', 'dp.id_tarifa')
                 ->leftJoin('servicio_publicitario as s', 's.id_servicio', '=', 't.id_servicio')
                 ->leftJoin('paquete as pa', 'pa.id_paquete', '=', 'dp.id_paquete')
-                ->when($actor?->esCliente(), fn ($b) => $b->where('p.id_empresa', $actor->idEmpresa() ?? 0))
+                ->when($actor?->esCliente(), fn ($b) => $actor->filtrarProformas($b, 'p.'))
                 ->selectRaw("dp.id_detalle as id, COALESCE(s.nombre, pa.nombre, 'Servicio/Paquete') || ' (Cant: ' || dp.cantidad || ')' as nombre, c.id_campania"),
             'pautas-emitidas' => DB::table('programacion_pauta as pp')
                 ->join('material_publicitario as m', 'm.id_material', '=', 'pp.id_material')

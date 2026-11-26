@@ -46,6 +46,7 @@ export default function PaginaCrud({
     editable = true,
     creable = true,
     anchoModal,
+    botonesEncabezado = null,
 }) {
     const { puede } = useAuth();
     const { exito, error, confirmar } = useAvisos();
@@ -145,6 +146,7 @@ export default function PaginaCrud({
     return (
         <div>
             <EncabezadoPagina titulo={titulo} descripcion={descripcion}>
+                {botonesEncabezado}
                 {creable && campos.length > 0 && puede(`${privilegio}.crear`) && (
                     <button className="btn btn-primario" onClick={abrirCrear}>
                         <Plus size={16} /> Nuevo {singular}
