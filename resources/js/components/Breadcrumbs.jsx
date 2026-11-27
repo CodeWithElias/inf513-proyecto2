@@ -64,7 +64,7 @@ export default function Breadcrumbs() {
     return (
         <nav
             aria-label="Migas de pan"
-            className="px-4 sm:px-6 py-2 text-xs flex items-center gap-1.5 text-texto-suave bg-superficie/60 border-b border-borde/40 overflow-x-auto whitespace-nowrap"
+            className="px-4 sm:px-6 py-2 text-xs flex items-center gap-1.5 text-texto-suave bg-superficie border-b border-borde/40 overflow-x-auto whitespace-nowrap"
         >
             <Link
                 to="/"
