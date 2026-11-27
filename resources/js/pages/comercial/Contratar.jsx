@@ -10,7 +10,7 @@ import Campo from '../../components/Campo';
 import Insignia from '../../components/Insignia';
 import { fecha, fechaHora, moneda } from '../../lib/formato';
 import { validar } from '../../lib/validar';
-import { VisorMaterial, validarArchivo, leerDuracion, FORMATOS, MAX_MB } from '../operacion/ArchivoMaterial';
+import { VisorMaterial, validarArchivo, leerDuracion, MAX_MB, tipoPorArchivo, formatosDe, describirFormatos } from '../operacion/ArchivoMaterial';
 
 const PASOS = [
     { clave: 'campania', titulo: 'Campaña', icono: Flag },
@@ -225,8 +225,11 @@ function LineaMaterial({ c, l, cargados, alGuardar, alVer }) {
     const compatibles = cargados.filter((m) => l.tipos_material.includes(m.tipo) && m.id_material !== l.material?.id_material);
 
     const elegir = async (f) => {
+        // El tipo de pieza se ajusta al archivo elegido (dentro de los tipos que admite este servicio)
+        const nuevoTipo = tipoPorArchivo(f, tipo, l.tipos_material) ?? tipo;
+        setTipo(nuevoTipo);
         setArchivo(f);
-        setErr(f ? validarArchivo(f, tipo) : null);
+        setErr(f ? validarArchivo(f, nuevoTipo) : null);
         if (f && /^(video|audio)\//.test(f.type)) {
             const s = await leerDuracion(f);
             if (s) {
@@ -311,8 +314,8 @@ function LineaMaterial({ c, l, cargados, alGuardar, alVer }) {
                         </div>
                         <div className="sm:col-span-2">
                             <label className="etiqueta" htmlFor={idArchivo}>Archivo {tipo !== 'texto' && <span className="text-peligro" aria-hidden>*</span>}</label>
-                            <input id={idArchivo} type="file" className="input" accept={(FORMATOS[tipo] ?? []).map((x) => `.${x}`).join(',')} onChange={(e) => elegir(e.target.files?.[0] ?? null)} aria-describedby={`${idArchivo}-ayuda`} />
-                            <p id={`${idArchivo}-ayuda`} className="text-xs text-texto-suave mt-1">Formatos: {(FORMATOS[tipo] ?? []).join(', ')} · máximo {MAX_MB} MB</p>
+                            <input id={idArchivo} type="file" className="input" accept={formatosDe(l.tipos_material).map((x) => `.${x}`).join(',')} onChange={(e) => elegir(e.target.files?.[0] ?? null)} aria-describedby={`${idArchivo}-ayuda`} />
+                            <p id={`${idArchivo}-ayuda`} className="text-xs text-texto-suave mt-1">Formatos: {describirFormatos(l.tipos_material)} · máximo {MAX_MB} MB</p>
                         </div>
                     </div>
                     {['video', 'audio'].includes(tipo) && (
