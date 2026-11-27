@@ -39,6 +39,14 @@ $escribible = static function (string $dir): bool {
     return @file_put_contents($prueba, '1') !== false && @unlink($prueba);
 };
 
+// Carpetas que el despliegue por FTP puede no crear (la acción excluye la caché y los materiales subidos):
+// se crean aquí si faltan, antes de comprobar si se puede escribir.
+foreach (['framework/views', 'framework/cache/data', 'framework/sessions', 'logs', 'app/private/materiales'] as $sub) {
+    if (! is_dir("{$storage}/{$sub}") && is_writable($storage)) {
+        @mkdir("{$storage}/{$sub}", 0777, true);
+    }
+}
+
 if (! $escribible($storage.'/framework/views') || ! $escribible($storage.'/framework/cache/data') || ! $escribible($storage.'/logs')) {
     $alterno = rtrim(sys_get_temp_dir(), '/\\').'/grupo13sa-proyecto2-storage';
     foreach (['framework/cache/data', 'framework/views', 'framework/sessions', 'logs', 'app/public', 'app/private'] as $sub) {

@@ -35,6 +35,13 @@ return [
             'root' => storage_path('app/private'),
             'serve' => true,
             'throw' => false,
+            // En tecnoweb PHP corre como «apache» y el FTP con el usuario del grupo: con los permisos privados
+            // por defecto (0700/0600) el FTP no puede ver ni respaldar los materiales subidos. Desde la web
+            // siguen bloqueados: .htaccess niega todo laravel/ y se sirven solo con enlace firmado.
+            'permissions' => [
+                'file' => ['public' => 0644, 'private' => 0644],
+                'dir' => ['public' => 0755, 'private' => 0755],
+            ],
             'report' => false,
         ],
 
