@@ -18,7 +18,7 @@ import {
     AlertTriangle,
     Eye,
 } from 'lucide-react';
-import { OrigenArchivo, VisorMaterial, validarArchivo, leerDuracion, extension } from './ArchivoMaterial';
+import { OrigenArchivo, VisorMaterial, validarArchivo, leerDuracion, extension, tipoPorArchivo } from './ArchivoMaterial';
 import { api, mensajeError } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useAvisos } from '../../context/AvisosContext';
@@ -226,10 +226,12 @@ export default function Materiales() {
      * Al elegir un archivo: se valida al instante, se completa el nombre y,
      * si es video o audio, se lee su duración real.
      */
-    const elegirArchivo = (setForm, tipo) => async (archivo) => {
-        const e = validarArchivo(archivo, tipo);
-        setErroresForm((er) => ({ ...er, archivo: e ? [e] : undefined, nombre_archivo: undefined }));
-        setForm((prev) => ({ ...prev, archivo, nombre_archivo: archivo ? archivo.name : prev.nombre_actual }));
+    const elegirArchivo = (setForm, tipo, tipos) => async (archivo) => {
+        // Si el archivo es de otro tipo (ej. una imagen con «Video» elegido), el tipo de pieza se ajusta solo
+        const nuevoTipo = tipoPorArchivo(archivo, tipo, tipos) ?? tipo;
+        const e = validarArchivo(archivo, nuevoTipo);
+        setErroresForm((er) => ({ ...er, archivo: e ? [e] : undefined, nombre_archivo: undefined, tipo: undefined }));
+        setForm((prev) => ({ ...prev, archivo, tipo: nuevoTipo, nombre_archivo: archivo ? archivo.name : prev.nombre_actual }));
         if (archivo && /^(video|audio)\//.test(archivo.type)) {
             const segundos = await leerDuracion(archivo);
             if (segundos) {
@@ -665,6 +667,7 @@ export default function Materiales() {
                         datos={formData}
                         onCambiar={cambiarCampoForm}
                         onArchivo={elegirArchivo(setFormData, formData.tipo)}
+                        tipos={TIPOS_MATERIAL.map((t) => t.id)}
                         errores={erroresForm}
                         requerido={formData.tipo !== 'texto'}
                     />
@@ -725,7 +728,8 @@ export default function Materiales() {
                     <OrigenArchivo
                         datos={formVersion}
                         onCambiar={cambiarCampoVersion}
-                        onArchivo={elegirArchivo(setFormVersion, formVersion.tipo)}
+                        onArchivo={elegirArchivo(setFormVersion, formVersion.tipo, [formVersion.tipo])}
+                        tipos={[formVersion.tipo]}
                         errores={erroresForm}
                         requerido={materialActual?.tipo !== 'texto'}
                     />

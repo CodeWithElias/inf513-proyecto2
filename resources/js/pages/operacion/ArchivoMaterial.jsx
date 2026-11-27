@@ -28,13 +28,35 @@ export const tamanoLegible = (bytes) => {
     return `${(bytes / 1048576).toFixed(1)} MB`;
 };
 
+const NOMBRE_TIPO = { video: 'video', audio: 'audio', imagen: 'imagen', banner: 'banner', texto: 'texto' };
+
+/** Formatos de los tipos indicados, sin repetir (para el selector de archivos). */
+export const formatosDe = (tipos = Object.keys(FORMATOS)) => [...new Set(tipos.flatMap((t) => FORMATOS[t] ?? []))];
+
+/** Texto legible de los formatos admitidos: «video (mp4, mov…) · imagen (jpg, png…)». */
+export const describirFormatos = (tipos = Object.keys(FORMATOS)) =>
+    tipos.filter((t) => t !== 'banner' || !tipos.includes('imagen')).map((t) => `${NOMBRE_TIPO[t]} (${FORMATOS[t].join(', ')})`).join(' · ');
+
+/**
+ * Tipo de pieza que corresponde al archivo elegido: se mantiene el actual si el formato le sirve;
+ * si no, el primero de los permitidos que acepte esa extensión. null si ningún tipo la acepta.
+ */
+export function tipoPorArchivo(archivo, actual, tipos = Object.keys(FORMATOS)) {
+    if (!archivo) return actual;
+    const ext = extension(archivo.name);
+    if ((FORMATOS[actual] ?? []).includes(ext)) return actual;
+    return tipos.find((t) => (FORMATOS[t] ?? []).includes(ext)) ?? null;
+}
+
 /** Mensaje de error del archivo elegido, o null si es válido. */
 export function validarArchivo(archivo, tipo) {
     if (!archivo) return null;
     const permitidos = FORMATOS[tipo] ?? [];
     const ext = extension(archivo.name);
     if (!permitidos.includes(ext)) {
-        return `El archivo «${archivo.name}» no corresponde a un material de tipo ${tipo}. Formatos permitidos: ${permitidos.join(', ')}.`;
+        return formatosDe().includes(ext)
+            ? `El archivo «${archivo.name}» es de tipo ${tipoPorArchivo(archivo, null)}, pero esta pieza debe ser ${tipo} (${permitidos.join(', ')}).`
+            : `El formato «.${ext || 'sin extensión'}» no está soportado. Formatos admitidos: ${describirFormatos()}.`;
     }
     if (archivo.size > MAX_MB * 1048576) {
         return `El archivo pesa ${tamanoLegible(archivo.size)}; el máximo permitido es ${MAX_MB} MB.`;
@@ -65,10 +87,10 @@ export function leerDuracion(archivo) {
  *   datos: { tipo, origen: 'archivo'|'enlace', archivo: File|null, url_archivo, interno: bool, nombre_actual }
  *   onCambiar(campo, valor) · onArchivo(File|null) · errores: { archivo, url_archivo }
  */
-export function OrigenArchivo({ datos, onCambiar, onArchivo, errores = {}, requerido = true }) {
+export function OrigenArchivo({ datos, onCambiar, onArchivo, errores = {}, requerido = true, tipos = Object.keys(FORMATOS) }) {
     const id = useId();
-    const permitidos = FORMATOS[datos.tipo] ?? [];
-    const accept = permitidos.map((e) => `.${e}`).join(',');
+    // El selector acepta todos los formatos de los tipos permitidos; el tipo de pieza se ajusta según el archivo
+    const accept = formatosDe(tipos).map((e) => `.${e}`).join(',');
     const errorArchivo = errores.archivo?.[0] ?? errores.archivo;
     const errorUrl = errores.url_archivo?.[0] ?? errores.url_archivo;
 
@@ -118,7 +140,7 @@ export function OrigenArchivo({ datos, onCambiar, onArchivo, errores = {}, reque
                             <span className="text-sm">Haga clic para elegir el archivo</span>
                         )}
                         <span className="text-xs text-texto-suave">
-                            Formatos: {permitidos.join(', ')} · máximo {MAX_MB} MB
+                            Formatos: {describirFormatos(tipos)} · máximo {MAX_MB} MB
                         </span>
                     </label>
                     <input
