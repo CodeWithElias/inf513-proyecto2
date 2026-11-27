@@ -447,7 +447,8 @@ function LineaAgenda({ c, l, alGuardar }) {
                     ) : (
                         <>
                             <p className="text-xs text-texto-suave mb-2" aria-live="polite">Seleccionados: {sel.size} de {l.cantidad}</p>
-                            <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+                            {/* relative: las casillas ocultas (sr-only) quedan dentro de la lista y no estiran la página */}
+                            <div className="relative max-h-80 overflow-y-auto space-y-2 pr-1 [scrollbar-width:thin] [scrollbar-color:var(--borde)_transparent]">
                                 {porDia.map(([dia, lista]) => (
                                     <fieldset key={dia} className="border border-borde rounded-tema p-2">
                                         <legend className="text-xs font-semibold px-1">{new Date(`${dia}T12:00:00`).toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long' })}</legend>
